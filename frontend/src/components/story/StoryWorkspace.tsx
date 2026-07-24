@@ -446,14 +446,14 @@ const StoryWorkspace = () => {
 />
 <StoryComparisonDashboard
   storyA={
-    currentStory.chapters
-      ?.map((chapter) => chapter.content)
-      .join("\n\n") || ""
+    currentStory.chapters?.length
+      ? currentStory.chapters[currentStory.chapters.length - 1].content
+      : ""
   }
   storyB={
-    currentStory.chapters
-      ?.map((chapter) => chapter.content)
-      .join("\n\n") || ""
+    currentStory.chapters?.length && currentStory.chapters.length > 1
+      ? currentStory.chapters[currentStory.chapters.length - 2].content
+      : "(previous chapter will appear here)"
   }
 />
 
