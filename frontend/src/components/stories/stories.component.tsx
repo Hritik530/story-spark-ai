@@ -673,11 +673,6 @@ const handleLoadFromRoster = (
 };
 const dropdownRef = useRef<HTMLDivElement>(null);
 const inputRef = useRef<HTMLTextAreaElement>(null);
-const [guestRequestCount, setGuestRequestCount] = useState<number>(() =>
-  parseInt(localStorage.getItem("guestRequestCount") || "0", 10),
-);
-const [showLimitModal, setShowLimitModal] = useState<boolean>(false);
-
 useEffect(() => {
   window.scrollTo({ top: 0, behavior: "smooth" });
 }, []);
