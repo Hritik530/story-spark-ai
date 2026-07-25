@@ -1101,7 +1101,9 @@ const onSubmit: SubmitHandler<Inputs> = useCallback(async (data) => {
           const newCount = guestRequestCount + 1;
           setGuestRequestCount(newCount);
           localStorage.setItem("guestRequestCount", String(newCount));
-        // Clear draft after successful generation
+        } // ← correctly closes the if (!login) block here
+
+        // Post-generation cleanup — runs for ALL users
         localStorage.removeItem(DRAFT_KEY);
         setDraftStatus("");
         reset();
@@ -1110,8 +1112,7 @@ const onSubmit: SubmitHandler<Inputs> = useCallback(async (data) => {
         if (selectedGenre) {
           playSoundtrack(selectedGenre);
         }
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }
+        window.scrollTo({ top: 0, behavior: "smooth" });
     } catch (error: unknown) {
       const message = getErrorMessage(error);
       if (message !== "Story generation was cancelled.") {
