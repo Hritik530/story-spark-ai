@@ -1570,8 +1570,6 @@ const handleExportMarkdown = () => {
 
   const uniqueStories = useMemo(() => getUniqueStories(stories), [stories]);
 
-  const uniqueStories = useMemo(() => getUniqueStories(stories), [stories]);
-
   const filteredStories = useMemo(() => {
     if (!debouncedSearchQuery.trim()) return uniqueStories;
     const query = debouncedSearchQuery.toLowerCase();
