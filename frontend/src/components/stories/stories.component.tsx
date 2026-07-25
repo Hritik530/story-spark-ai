@@ -741,12 +741,9 @@ useEffect(() => {
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
 
-  const playSoundtrack = (genre: string) => {
-
+  const playSoundtrack = useCallback((genre: string) => {
     const soundtrack = soundtrackMap[genre];
-
     if (!soundtrack) return;
-
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
@@ -755,7 +752,7 @@ useEffect(() => {
         /* ignore autoplay restrictions */
       });
     }
-  }, []);
+  }, []); // audioRef is a stable ref — no deps needed
 
   const [isCopied, setIsCopied] = useState<boolean>(false);
   const [showWorldMap, setShowWorldMap] = useState<boolean>(false);
