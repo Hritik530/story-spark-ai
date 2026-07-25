@@ -962,10 +962,6 @@ useEffect(() => {
 
 
   useEffect(() => {
-    setValue("prompt", debouncedPrompt);
-  }, [debouncedPrompt, setValue]);
-
-  useEffect(() => {
     setNarrationWordIndex(0);
     setNarrationState("idle");
   }, [selectedStory?.uuid]);
