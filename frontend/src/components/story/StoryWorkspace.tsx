@@ -50,6 +50,7 @@ import StoryPublishingReadiness from "../publishing-readiness/StoryPublishingRea
 import StoryTagGenerator from "../story-tags/StoryTagGenerator";
 import StoryReadingInfo from "../reading-info/StoryReadingInfo";
 import StoryFocusMode from "../focus-mode/StoryFocusMode";
+import StoryContinuationSuggestions from "../story-continuation/StoryContinuationSuggestions";
 import {
   getSafeFileName,
   downloadBlob,
@@ -562,6 +563,17 @@ const StoryWorkspace = () => {
       ?.map((chapter) => chapter.content)
       .join("\n\n") || ""
   }
+/>
+
+<StoryContinuationSuggestions
+  story={
+    currentStory.chapters
+      ?.map((chapter) => chapter.content)
+      .join("\n\n") || ""
+  }
+  onInsert={(text) => {
+    console.log("Insert continuation:", text);
+  }}
 />
 
   <StoryViewer
