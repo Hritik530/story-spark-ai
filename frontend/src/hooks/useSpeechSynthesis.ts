@@ -179,7 +179,7 @@ export const useSpeechSynthesis = (
     setIsSpeaking(false);
     setIsPaused(false);
     setCurrentWordIndex(0);
-  }, []);
+  };
 
   useEffect(() => {
     if (!hasSpeechSupport()) {
