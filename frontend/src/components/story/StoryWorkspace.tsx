@@ -40,6 +40,7 @@ import StoryTimelineVisualization from "../timeline/StoryTimelineVisualization";
 import StoryRelationshipGraph from "../relationship-graph/StoryRelationshipGraph";
 import StoryPlotTwistGenerator from "../plot-twist/StoryPlotTwistGenerator";
 import StoryReadingAnalytics from "../analytics/StoryReadingAnalytics";
+
 import StoryRevisionHistory from "../revision-history/StoryRevisionHistory";
 import { createRevision } from "../../utils/storyRevisionHistory";
 import StoryEndingAnalyzer from "../ending-analyzer/StoryEndingAnalyzer";
@@ -529,6 +530,7 @@ const StoryWorkspace = () => {
     console.log("Insert name:", name);
   }}
 />
+
 
 <StoryPublishingReadiness
   story={
