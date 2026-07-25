@@ -1438,6 +1438,7 @@ const onSubmit: SubmitHandler<Inputs> = useCallback(async (data) => {
   };
 
   const isOverLimit = textareaValue.length >= MAX_PROMPT_LENGTH;
+  const isDangerLimit = textareaValue.length >= MAX_PROMPT_LENGTH * DANGER_THRESHOLD;
   const isNearLimit = textareaValue.length >= MAX_PROMPT_LENGTH * WARN_THRESHOLD;
   
   useKeyboardShortcuts({
@@ -1507,6 +1508,7 @@ const handleExportMarkdown = () => {
 
 
   const isOverLimit = textareaValue.length >= MAX_PROMPT_LENGTH;
+  const isDangerLimit = textareaValue.length >= MAX_PROMPT_LENGTH * DANGER_THRESHOLD;
   const isNearLimit = textareaValue.length >= MAX_PROMPT_LENGTH * WARN_THRESHOLD;
   const isGenerateDisabled = loading || isOverLimit || !textareaValue.trim();
 
