@@ -7,7 +7,7 @@ import {
   useGenerateFreeAlternateEndingsMutation,
 } from "../../redux/apis/ai.model.api";
 import jsPDF from "jspdf";
-import StoriesViewComponent, { IStories } from "./stories.view.component";
+// StoriesViewComponent and IStories are defined locally in this file
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { getUserInfo, isLoggedIn } from "../../services/auth.service";
 import { getRequestLimit, getWordCount, prompts, STORY_TEMPLATES } from "./stories.utils";
