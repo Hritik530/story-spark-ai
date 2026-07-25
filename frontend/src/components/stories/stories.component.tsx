@@ -1439,26 +1439,6 @@ const onSubmit: SubmitHandler<Inputs> = useCallback(async (data) => {
 
   const isOverLimit = textareaValue.length >= MAX_PROMPT_LENGTH;
   const isNearLimit = textareaValue.length >= MAX_PROMPT_LENGTH * WARN_THRESHOLD;
-  
-  useKeyboardShortcuts({
-  onOpenHelp: () => setShowHelpModal(true),
-  onCloseHelp: () => setShowHelpModal(false),
-  onGenerate: () => {
-    if (inputRef.current) {
-      const form = inputRef.current.closest("form");
-      if (form) form.requestSubmit();
-    }
-  },
-  onPublish: () => {
-    const publishBtn = document.getElementById("publish-story-btn");
-    publishBtn?.click();
-  },
-  focusPrompt: () => {
-    inputRef.current?.focus();
-  },
-  hasStory: stories.length > 0,
-});
-  }, []);
 
   const generateId = () => Math.random().toString(36).substring(2, 9);
       }
