@@ -1036,13 +1036,6 @@ useEffect(() => {
   }, [selectedStory, selectedStory?.content, isLogin, selectTopics, createPost]);
 
 useEffect(() => {
-  if (location.state && location.state.prompt) {
-    setTextareaValue(location.state.prompt);
-    navigate(location.pathname, { replace: true, state: {} });
-  }
-}, [location, navigate]);
-
-useEffect(() => {
   setValue("prompt", textareaValue);
 }, [textareaValue, setValue]);
 
