@@ -28,6 +28,14 @@ APP_DIR = Path(__file__).resolve().parent
 ML_DIR = APP_DIR / "ml"
 SAVED_DIR = ML_DIR / "saved"
 sys.path.insert(0, str(ML_DIR))
+from ml.score_api import score_bp
+import json
+import random
+import pandas as pd
+import numpy as np
+import plotly.express as px
+import streamlit as st
+
 
 # Fallback constants if model.py is unavailable during UI testing
 try:
