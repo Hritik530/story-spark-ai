@@ -1072,16 +1072,17 @@ useEffect(() => {
     return () => clearTimeout(timer);
   }, [selectedStory, selectedStory?.content, isLogin, selectTopics, createPost]);
 
+
+useEffect(() => {
+  setValue("prompt", textareaValue);
+}, [textareaValue, setValue]);
+
   useEffect(() => {
     if (location.state && location.state.prompt) {
       setTextareaValue(location.state.prompt);
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location, navigate]);
-
-  useEffect(() => {
-    setValue("prompt", textareaValue);
-  }, [textareaValue, setValue]);
 
   const onSubmit: SubmitHandler<Inputs> = useCallback(async (data) => {
     if (isGenerationInProgressRef.current) return;
