@@ -763,6 +763,19 @@ useEffect(() => {
 
 
 
+  const playSoundtrack = useCallback((genre: string) => {
+    const soundtrack = soundtrackMap[genre];
+    if (!soundtrack) return;
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current.src = soundtrack;
+      audioRef.current.play().catch(() => {
+        /* ignore autoplay restrictions */
+      });
+    }
+  }, []); // audioRef is a stable ref — no deps needed
+
           const dropdownRef = useRef<HTMLDivElement>(null);
           const languageDropdownRef = useRef<HTMLDivElement>(null);
           const inputRef = useRef<HTMLTextAreaElement>(null);
