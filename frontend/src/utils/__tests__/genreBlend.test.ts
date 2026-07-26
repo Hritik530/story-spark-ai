@@ -1,4 +1,5 @@
 import { describe, it, expect } from "vitest";
+import { blendGenres, validateGenres, regenerateBlend } from "../genreBlend";
 import {
   blendGenres,
   validateGenres,
@@ -6,6 +7,7 @@ import {
   validatePromptLength,
   DEFAULT_MAX_PROMPT_LENGTH,
 } from "../genreBlend";
+
 
 describe("blendGenres", () => {
   it("returns selectedGenres and blendedPrompt unchanged", () => {
