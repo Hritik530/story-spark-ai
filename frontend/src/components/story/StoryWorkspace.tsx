@@ -49,7 +49,9 @@ import StoryNamingAssistant from "../naming-assistant/StoryNamingAssistant";
 import StoryPublishingReadiness from "../publishing-readiness/StoryPublishingReadiness";
 import StoryTagGenerator from "../story-tags/StoryTagGenerator";
 import StoryReadingInfo from "../reading-info/StoryReadingInfo";
-
+import VocabularyAnalyzer from "../vocabulary/VocabularyAnalyzer";
+import StoryFocusMode from "../focus-mode/StoryFocusMode";
+import StoryContinuationSuggestions from "../story-continuation/StoryContinuationSuggestions";
 
 import {
   getSafeFileName,
@@ -215,7 +217,7 @@ const StoryWorkspace = () => {
                 className={`px-3 py-1.5 rounded-md text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                   workspaceMode === "editor"
                     ? "bg-indigo-600 text-white shadow"
-                    : "text-slate-400 hover:text-slate-250"
+                    : "text-slate-400 hover:text-slate-300"
                 }`}
               >
                 📖 Read Story
@@ -225,7 +227,7 @@ const StoryWorkspace = () => {
                 className={`px-3 py-1.5 rounded-md text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                   workspaceMode === "network"
                     ? "bg-indigo-600 text-white shadow"
-                    : "text-slate-400 hover:text-slate-255"
+                    : "text-slate-400 hover:text-slate-300"
                 }`}
               >
                 🕸️ Character Network
@@ -370,14 +372,18 @@ const StoryWorkspace = () => {
 
 <PromptLibrary
   onInsertPrompt={(prompt) => {
-    console.log("Selected Prompt:", prompt);
+    // TODO: dispatch action to insert prompt into the active editor
+    toast("Prompt insertion coming soon!", { icon: "🚧" });
+    console.warn("[TODO] onInsertPrompt not wired:", prompt);
   }}
 />
 
 <StoryTitleRating
   title={currentStory.title}
   onReplace={(newTitle) => {
-    console.log("Replace title:", newTitle);
+    // TODO: dispatch updateStoryTitle action
+    toast("Title replacement coming soon!", { icon: "🚧" });
+    console.warn("[TODO] onReplace title not wired:", newTitle);
   }}
 />
 
@@ -412,7 +418,9 @@ const StoryWorkspace = () => {
     fullStoryContent
   }
   onRestore={(draft) => {
-    console.log("Restore draft:", draft);
+    // TODO: dispatch action to restore draft content to editor
+    toast("Draft restore coming soon!", { icon: "🚧" });
+    console.warn("[TODO] onRestore draft not wired:", draft);
   }}
 />
 <StoryComparisonDashboard
@@ -421,6 +429,14 @@ const StoryWorkspace = () => {
   }
   storyB={
     fullStoryContent
+    currentStory.chapters?.length
+      ? currentStory.chapters[currentStory.chapters.length - 1].content
+      : ""
+  }
+  storyB={
+    currentStory.chapters?.length && currentStory.chapters.length > 1
+      ? currentStory.chapters[currentStory.chapters.length - 2].content
+      : "(previous chapter will appear here)"
   }
 />
 
@@ -447,7 +463,9 @@ const StoryWorkspace = () => {
     fullStoryContent
   }
   onApply={(twist) => {
-    console.log("Selected plot twist:", twist);
+    // TODO: dispatch action to append plot twist to story
+    toast("Plot twist apply coming soon!", { icon: "🚧" });
+    console.warn("[TODO] onApply twist not wired:", twist);
   }}
 />
 
@@ -475,7 +493,9 @@ const StoryWorkspace = () => {
     fullStoryContent
   }
   onRegenerate={(prompt) => {
-    console.log("Regenerate ending:", prompt);
+    // TODO: dispatch action to regenerate story ending
+    toast("Ending regeneration coming soon!", { icon: "🚧" });
+    console.warn("[TODO] onRegenerate ending not wired:", prompt);
   }}
 />
 
@@ -483,7 +503,9 @@ const StoryWorkspace = () => {
 
 <StoryNamingAssistant
   onInsert={(name) => {
-    console.log("Insert name:", name);
+    // TODO: dispatch action to insert name into editor at cursor position
+    toast("Name insertion coming soon!", { icon: "🚧" });
+    console.warn("[TODO] onInsert name not wired:", name);
   }}
 />
 
@@ -506,6 +528,24 @@ const StoryWorkspace = () => {
   }
 />
 
+<StoryFocusMode
+  story={
+    currentStory.chapters
+      ?.map((chapter) => chapter.content)
+      .join("\n\n") || ""
+  }
+/>
+
+<StoryContinuationSuggestions
+  story={
+    currentStory.chapters
+      ?.map((chapter) => chapter.content)
+      .join("\n\n") || ""
+  }
+  onInsert={(text) => {
+    console.log("Insert continuation:", text);
+  }}
+/>
 
   <StoryViewer
     chapters={currentStory.chapters}
