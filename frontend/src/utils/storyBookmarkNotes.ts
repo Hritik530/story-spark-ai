@@ -8,40 +8,25 @@ export interface BookmarkNote {
 
 const STORAGE_KEY = "story-bookmark-notes";
 
-export function getBookmarkNotes(): BookmarkNote[] {
+export function loadBookmarkNotes(): BookmarkNote[] {
+  const saved = localStorage.getItem(STORAGE_KEY);
+
+  if (!saved) return [];
+
   try {
-    const data = localStorage.getItem(STORAGE_KEY);
-    return data ? JSON.parse(data) : [];
+    return JSON.parse(saved);
   } catch {
     return [];
   }
 }
 
-export function saveBookmarkNotes(notes: BookmarkNote[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
-}
-
-export function addBookmarkNote(
-  note: BookmarkNote
-): BookmarkNote[] {
-  const notes = getBookmarkNotes();
-  const updated = [...notes, note];
-  saveBookmarkNotes(updated);
-  return updated;
-}
-
-export function updateBookmarkNote(
-  id: number,
-  content: string
-): BookmarkNote[] {
-  const updated = getBookmarkNotes().map((item) =>
-    item.id === id
-      ? { ...item, note: content }
-      : item
+export function saveBookmarkNotes(
+  notes: BookmarkNote[]
+) {
+  localStorage.setItem(
+    STORAGE_KEY,
+    JSON.stringify(notes)
   );
-
-  saveBookmarkNotes(updated);
-  return updated;
 }
 
 export function searchBookmarkNotes(
@@ -50,7 +35,11 @@ export function searchBookmarkNotes(
 ) {
   return notes.filter(
     (item) =>
-      item.title.toLowerCase().includes(keyword.toLowerCase()) ||
-      item.note.toLowerCase().includes(keyword.toLowerCase())
+      item.note
+        .toLowerCase()
+        .includes(keyword.toLowerCase()) ||
+      item.title
+        .toLowerCase()
+        .includes(keyword.toLowerCase())
   );
 }
