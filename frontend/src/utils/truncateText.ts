@@ -1,4 +1,3 @@
-
 /**
  * Truncates a string to a maximum length, adding an ellipsis suffix.
  * Attempts to break at a word boundary when possible.
@@ -34,5 +33,3 @@ export const truncateText = (
   }
 
   return truncated + suffix;
-}
-
