@@ -1125,6 +1125,29 @@ useEffect(() => {
           const newCount = guestRequestCount + 1;
           setGuestRequestCount(newCount);
           localStorage.setItem("guestRequestCount", String(newCount));
+        } // ← correctly closes the if (!login) block here
+
+        // Post-generation cleanup — runs for ALL users
+        localStorage.removeItem(DRAFT_KEY);
+        setDraftStatus("");
+        reset();
+        setCharacters([]);
+        setCurrentStep(1);
+        if (selectedGenre) {
+          playSoundtrack(selectedGenre);
+        }
+        window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
+      if (message !== "Story generation was cancelled.") {
+        toast.error(message);
+      }
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+      if (latencyTimeoutId) {
+        clearTimeout(latencyTimeoutId);
           // Clear draft after successful generation
           localStorage.removeItem(DRAFT_KEY);
           setDraftStatus("");
