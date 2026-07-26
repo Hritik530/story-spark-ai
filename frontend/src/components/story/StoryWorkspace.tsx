@@ -50,6 +50,8 @@ import StoryPublishingReadiness from "../publishing-readiness/StoryPublishingRea
 import StoryTagGenerator from "../story-tags/StoryTagGenerator";
 import StoryReadingInfo from "../reading-info/StoryReadingInfo";
 import VocabularyAnalyzer from "../vocabulary/VocabularyAnalyzer";
+import StoryFocusMode from "../focus-mode/StoryFocusMode";
+import StoryContinuationSuggestions from "../story-continuation/StoryContinuationSuggestions";
 
 import {
   getSafeFileName,
@@ -208,7 +210,7 @@ const StoryWorkspace = () => {
                 className={`px-3 py-1.5 rounded-md text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                   workspaceMode === "editor"
                     ? "bg-indigo-600 text-white shadow"
-                    : "text-slate-400 hover:text-slate-250"
+                    : "text-slate-400 hover:text-slate-300"
                 }`}
               >
                 📖 Read Story
@@ -218,7 +220,7 @@ const StoryWorkspace = () => {
                 className={`px-3 py-1.5 rounded-md text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                   workspaceMode === "network"
                     ? "bg-indigo-600 text-white shadow"
-                    : "text-slate-400 hover:text-slate-255"
+                    : "text-slate-400 hover:text-slate-300"
                 }`}
               >
                 🕸️ Character Network
@@ -446,14 +448,14 @@ const StoryWorkspace = () => {
 />
 <StoryComparisonDashboard
   storyA={
-    currentStory.chapters
-      ?.map((chapter) => chapter.content)
-      .join("\n\n") || ""
+    currentStory.chapters?.length
+      ? currentStory.chapters[currentStory.chapters.length - 1].content
+      : ""
   }
   storyB={
-    currentStory.chapters
-      ?.map((chapter) => chapter.content)
-      .join("\n\n") || ""
+    currentStory.chapters?.length && currentStory.chapters.length > 1
+      ? currentStory.chapters[currentStory.chapters.length - 2].content
+      : "(previous chapter will appear here)"
   }
 />
 
@@ -557,6 +559,24 @@ const StoryWorkspace = () => {
   }
 />
 
+<StoryFocusMode
+  story={
+    currentStory.chapters
+      ?.map((chapter) => chapter.content)
+      .join("\n\n") || ""
+  }
+/>
+
+<StoryContinuationSuggestions
+  story={
+    currentStory.chapters
+      ?.map((chapter) => chapter.content)
+      .join("\n\n") || ""
+  }
+  onInsert={(text) => {
+    console.log("Insert continuation:", text);
+  }}
+/>
 
   <StoryViewer
     chapters={currentStory.chapters}
