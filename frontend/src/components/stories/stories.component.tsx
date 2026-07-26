@@ -1635,11 +1635,36 @@ const isNarrationActive = narrationState !== "idle";
 
 const uniqueStories = useMemo(() => getUniqueStories(stories), [stories]);
 
+
+  const filteredStories = useMemo(() => {
+    if (!debouncedSearchQuery.trim()) return uniqueStories;
+    const query = debouncedSearchQuery.toLowerCase();
+    
+    return uniqueStories.filter((story) => {
+      switch (searchFilter) {
+        case "title":
+          return story.title?.toLowerCase().includes(query);
+        case "content":
+          return story.content?.toLowerCase().includes(query);
+        case "genre":
+          return story.tag?.toLowerCase().includes(query);
+        case "all":
+        default:
+          return (
+            story.title?.toLowerCase().includes(query) ||
+            story.content?.toLowerCase().includes(query) ||
+            story.tag?.toLowerCase().includes(query)
+          );
+      }
+    });
+  }, [uniqueStories, debouncedSearchQuery, searchFilter]);
+
 const uniqueStories = useMemo(() => getUniqueStories(stories), [stories]);
 
 const filteredStories = useMemo(() => {
   if (!debouncedSearchQuery.trim()) return uniqueStories;
   const query = debouncedSearchQuery.toLowerCase();
+
 
   return uniqueStories.filter((story) => {
     switch (searchFilter) {
