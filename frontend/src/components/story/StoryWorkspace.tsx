@@ -70,12 +70,19 @@ const StoryWorkspace = () => {
   "Classic" | "Novel" | "Minimal" | "Dark"
 >("Classic");
 
+
+  const [revisions, setRevisions] = useState(() => {
+    const storyContent =
+      currentStory?.chapters?.map((c) => c.content).join("\n\n") || "";
+    return storyContent ? [createRevision(storyContent)] : [];
+  });
   // Memoized once — used by all 20+ components instead of recomputing each time
   const fullStoryContent = useMemo(
     () =>
       currentStory?.chapters?.map((chapter) => chapter.content).join("\n\n") ?? "",
     [currentStory?.chapters]
   );
+
 
   const handleCopyStory = async () => {
   if (!currentStory) {
@@ -482,15 +489,10 @@ const StoryWorkspace = () => {
 />
 
 <StoryRevisionHistory
-  revisions={[
-    createRevision(
-      currentStory.chapters
-        ?.map((chapter) => chapter.content)
-        .join("\n\n") || ""
-    ),
-  ]}
+  revisions={revisions}
   onRestore={(content) => {
-    console.log("Restore revision:", content);
+    // TODO: dispatch action to restore story content from revision
+    console.warn("Restore revision not yet wired to Redux store:", content);
   }}
 />
 
