@@ -31,13 +31,16 @@ describe("normalizeWeights", () => {
     expect(result.genres.map((g) => g.genre)).toEqual(["fantasy", "sci-fi"]);
   });
 
-  it("handles zero total weight by returning config unchanged", () => {
+
+  it("handles empty genres array by returning empty config", () => {
+
     const config = { genres: [] };
     const result = normalizeWeights(config);
     expect(result.genres).toEqual([]);
   });
 
-  it("handles zero-weight genres array with entries", () => {
+
+  it("handles zero-weight genres array with entries by returning empty config", () => {
     const config = {
       genres: [
         { genre: "fantasy", weight: 0 },
@@ -45,8 +48,7 @@ describe("normalizeWeights", () => {
       ],
     };
     const result = normalizeWeights(config);
-    // All weights are 0, total is 0, so returns unchanged
-    expect(result.genres.every((g) => g.weight === 0)).toBe(true);
+    expect(result.genres).toEqual([]);
   });
 
   it("rounds normalized weights to integers", () => {
@@ -124,6 +126,7 @@ describe("validateWeights", () => {
     const config = { genres: [] };
     expect(validateWeights(config)).toBe(false);
   });
+
 
   it("returns false for a single genre at weight 100", () => {
     const config = { genres: [{ genre: "fantasy", weight: 100 }] };
