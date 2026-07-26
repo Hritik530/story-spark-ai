@@ -436,10 +436,17 @@ const StoryWorkspace = () => {
     console.warn("[TODO] onRestore draft not wired:", draft);
   }}
 />
-<StoryComparisonDashboard
+{/* StoryComparisonDashboard requires a second story source (e.g. a saved
+    draft or previous version) for storyB. Passing the same content for both
+    sides makes the comparison meaningless. Wire storyB to a real alternate
+    source before rendering this component. */}
+{/* <StoryComparisonDashboard
   storyA={
     fullStoryContent
   }
+
+  storyB={previousStoryDraft ?? ""}
+/> */}
   storyB={
     fullStoryContent
     currentStory.chapters?.length
@@ -452,6 +459,7 @@ const StoryWorkspace = () => {
       : "(previous chapter will appear here)"
   }
 />
+
 
 <StoryTimelineVisualization
   story={
