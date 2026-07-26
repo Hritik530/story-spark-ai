@@ -1486,6 +1486,12 @@ useEffect(() => {
       }
     }
 
+
+  const isOverLimit = textareaValue.length >= MAX_PROMPT_LENGTH;
+  const isDangerLimit = textareaValue.length >= MAX_PROMPT_LENGTH * DANGER_THRESHOLD;
+  const isNearLimit = textareaValue.length >= MAX_PROMPT_LENGTH * WARN_THRESHOLD;
+  
+  useKeyboardShortcuts({
     // Save PDF with sanitized name
     const safeTitle = title.replace(/[^a-z0-9]/gi, "_").toLowerCase();
     doc.save(`storyspark_${safeTitle}.pdf`);
@@ -1570,6 +1576,11 @@ const isNearLimit = textareaValue.length >= MAX_PROMPT_LENGTH * WARN_THRESHOLD;
 const isGenerateDisabled = loading || isOverLimit || !textareaValue.trim();
 
 
+
+const isOverLimit = textareaValue.length >= MAX_PROMPT_LENGTH;
+const isDangerLimit = textareaValue.length >= MAX_PROMPT_LENGTH * DANGER_THRESHOLD;
+const isNearLimit = textareaValue.length >= MAX_PROMPT_LENGTH * WARN_THRESHOLD;
+const isGenerateDisabled = loading || isOverLimit || !textareaValue.trim();
 
 const isOverLimit = textareaValue.length >= MAX_PROMPT_LENGTH;
 const isNearLimit = textareaValue.length >= MAX_PROMPT_LENGTH * WARN_THRESHOLD;
