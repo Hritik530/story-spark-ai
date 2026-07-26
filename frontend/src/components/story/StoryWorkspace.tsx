@@ -49,8 +49,10 @@ import StoryNamingAssistant from "../naming-assistant/StoryNamingAssistant";
 import StoryPublishingReadiness from "../publishing-readiness/StoryPublishingReadiness";
 import StoryTagGenerator from "../story-tags/StoryTagGenerator";
 import StoryReadingInfo from "../reading-info/StoryReadingInfo";
+import VocabularyAnalyzer from "../vocabulary/VocabularyAnalyzer";
 import StoryFocusMode from "../focus-mode/StoryFocusMode";
 import StoryContinuationSuggestions from "../story-continuation/StoryContinuationSuggestions";
+
 import {
   getSafeFileName,
   downloadBlob,
