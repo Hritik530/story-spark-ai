@@ -35,6 +35,7 @@ import {
 } from "../../utils/story-draft";
 import WritingGoalTracker from "./WritingGoalTracker";
 
+import TitleABComparison from "./TitleABComparison";
 const soundtrackMap: Record<string, string> = {
   "≡ƒºÖ Fantasy": "/audio/fantasy.mp3",
   "≡ƒÿ▒ Horror": "/audio/horror.mp3",
@@ -449,6 +450,18 @@ const StoriesComponent = () => {
     startWordIndex: number;
     endWordIndex: number;
   };
+
+  const generateTitlesForStory = async (storyContent: string) => {
+    const response = await fetch("/api/stories/generate-titles", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: storyContent }),
+    });
+    if (!response.ok) throw new Error("Failed to generate titles");
+    const data = await response.json();
+    return data.titles; // expects: { title: string, scores: { creativity, relevance, memorability, emotionalAppeal } }[]
+  };
+
 
 
   const getStoryDedupKey = (story: IStories) => {
@@ -960,10 +973,6 @@ const StoriesComponent = () => {
     }
   }, [location, navigate, setSelectedGenre, setTextareaValue]);
 
-
-  useEffect(() => {
-    setValue("prompt", debouncedPrompt);
-  }, [debouncedPrompt, setValue]);
 
   useEffect(() => {
     setNarrationWordIndex(0);
@@ -1504,6 +1513,10 @@ const handleExportMarkdown = () => {
     toast.success("Markdown downloaded!");
   } catch (error) { console.error(error); toast.error("Failed to export Markdown."); }
 };
+const isOverLimit = textareaValue.length >= MAX_PROMPT_LENGTH;
+const isNearLimit = textareaValue.length >= MAX_PROMPT_LENGTH * WARN_THRESHOLD;
+const isGenerateDisabled = loading || isOverLimit || !textareaValue.trim();
+
 
 
 const isOverLimit = textareaValue.length >= MAX_PROMPT_LENGTH;
@@ -1785,6 +1798,21 @@ if (isLoading) {
                     </button>
                   </div>
                 </div>
+                {selectedStory && (
+                  <TitleABComparison
+                    storyContent={selectedStory.content}
+                    generateTitles={generateTitlesForStory}
+                    onApplyTitle={(title) => {
+                      const updatedStory = { ...selectedStory, title };
+                      setSelectedStory(updatedStory);
+                      setStories(
+                        stories.map((s) => (s.uuid === selectedStory.uuid ? updatedStory : s))
+                      );
+                      toast.success("Title updated!");
+                    }}
+                  />
+                )}
+
 
                 <div className="max-w-3xl mx-auto px-4 sm:px-0">
                   <div className="bg-gray-50 rounded-md p-4 border border-gray-200 text-slate-900 dark:bg-blue-500/10 dark:border-gray-400 dark:text-white overflow-hidden">
