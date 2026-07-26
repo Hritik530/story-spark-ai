@@ -33,6 +33,7 @@ import {
   saveStoryDraft,
   type StoryDraftData,
 } from "../../utils/story-draft";
+import WritingGoalTracker from "./WritingGoalTracker";
 
 import TitleABComparison from "./TitleABComparison";
 const soundtrackMap: Record<string, string> = {
@@ -460,6 +461,7 @@ const StoriesComponent = () => {
     const data = await response.json();
     return data.titles; // expects: { title: string, scores: { creativity, relevance, memorability, emotionalAppeal } }[]
   };
+
 
 
   const getStoryDedupKey = (story: IStories) => {
@@ -1511,6 +1513,10 @@ const handleExportMarkdown = () => {
     toast.success("Markdown downloaded!");
   } catch (error) { console.error(error); toast.error("Failed to export Markdown."); }
 };
+const isOverLimit = textareaValue.length >= MAX_PROMPT_LENGTH;
+const isNearLimit = textareaValue.length >= MAX_PROMPT_LENGTH * WARN_THRESHOLD;
+const isGenerateDisabled = loading || isOverLimit || !textareaValue.trim();
+
 
 
 const isOverLimit = textareaValue.length >= MAX_PROMPT_LENGTH;
@@ -1806,6 +1812,7 @@ if (isLoading) {
                     }}
                   />
                 )}
+
 
                 <div className="max-w-3xl mx-auto px-4 sm:px-0">
                   <div className="bg-gray-50 rounded-md p-4 border border-gray-200 text-slate-900 dark:bg-blue-500/10 dark:border-gray-400 dark:text-white overflow-hidden">
@@ -2600,6 +2607,7 @@ if (isLoading) {
                                           <div className="bg-slate-950/60 p-5 rounded-xl border border-slate-800 leading-relaxed text-slate-300 text-sm md:text-base italic shadow-inner whitespace-pre-wrap">
                                             <p>{currentEndingData.ending}</p>
                                           </div>
+                                          <WritingGoalTracker wordCount={getWordCount(selectedStory?.content ?? "")} />
 
                                           <div>
                                             <details className="group border border-slate-800 rounded-lg overflow-hidden bg-slate-950/20">
