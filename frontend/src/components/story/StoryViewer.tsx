@@ -225,7 +225,9 @@ p {
 
         const paragraphsHtml = (chapter.content || "")
           .split(/\n+/)
-          .map((para) => `<p>${para.trim()}</p>`)
+          .map((para) => para.trim())
+          .filter((para) => para.length > 0)   // mirror PDF: skip empty paragraphs
+          .map((para) => `<p>${para}</p>`)
           .join("\n");
 
         const htmlContent = `<?xml version="1.0" encoding="utf-8"?>
