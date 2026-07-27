@@ -289,12 +289,14 @@ ${ncxNavPoints}  </navMap>
 
       // Trigger ZIP blob download
       const blob = await zip.generateAsync({ type: "blob" });
+      const objectUrl = URL.createObjectURL(blob);
       const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
+      link.href = objectUrl;
       link.download = `${safeName}.epub`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      URL.revokeObjectURL(objectUrl); // Release blob from memory immediately after download
 
       toast.success("EPUB downloaded successfully!");
     } catch (err) {
