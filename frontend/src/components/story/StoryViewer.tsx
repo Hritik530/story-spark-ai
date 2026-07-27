@@ -405,6 +405,16 @@ ${ncxNavPoints}  </navMap>
           </div>
         </div>
 
+        {/* Audio Narration Player */}
+        {chapters.length > 0 && (
+          <div className="mb-4">
+            <AudioPlayer
+              text={chapters.map((ch) => ch.content).join("\n\n")}
+              title={chapters[0]?.title ?? "Story"}
+            />
+          </div>
+        )}
+
         {/* Action Export Buttons */}
         <div className="flex gap-4">
           <button
