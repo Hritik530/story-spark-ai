@@ -7,7 +7,25 @@ export const useAccessibility = () => {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const saved = localStorage.getItem('accessibility-contrast');
-    if (saved) setHighContrast(JSON.parse(saved));
+    if (saved) {
+      try {
+        setHighContrast(JSON.parse(saved));
+      } catch {
+        // malformed localStorage value — fall back to default (false)
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const saved = localStorage.getItem('accessibility-motion');
+    if (saved) {
+      try {
+        setReducedMotion(JSON.parse(saved));
+      } catch {
+        // malformed localStorage value — fall back to default (false)
+      }
+    }
   }, []);
 
   const toggle = (setter, key) => {
