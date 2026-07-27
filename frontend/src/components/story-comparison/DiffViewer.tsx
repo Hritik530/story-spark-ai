@@ -1,5 +1,5 @@
-import React, { useMemo } from "react";
-import { diffChars, Change } from "jsdiff";
+import React, { useMemo, useState } from "react";
+import { diffChars, diffWords, Change } from "diff";
 import DiffHighlight from "./DiffHighlight";
 
 interface IStoryVersion {
@@ -21,10 +21,16 @@ interface DiffViewerProps {
   onBack: () => void;
 }
 
+type DiffMode = "char" | "word";
+
 const DiffViewer: React.FC<DiffViewerProps> = ({ version1, version2, onBack }) => {
+  const [diffMode, setDiffMode] = useState<DiffMode>("word");
+
+  const diffFn = diffMode === "word" ? diffWords : diffChars;
+
   const differences = useMemo(() => {
-    return diffChars(version1.content, version2.content);
-  }, [version1.content, version2.content]);
+    return diffFn(version1.content, version2.content);
+  }, [version1.content, version2.content, diffMode]);
 
   const stats = useMemo(() => {
     let added = 0;
@@ -41,8 +47,8 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ version1, version2, onBack }) =
   }, [differences]);
 
   const titleDiff = useMemo(() => {
-    return diffChars(version1.title, version2.title);
-  }, [version1.title, version2.title]);
+    return diffFn(version1.title, version2.title);
+  }, [version1.title, version2.title, diffMode]);
 
   return (
     <div className="space-y-6">
@@ -55,6 +61,37 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ version1, version2, onBack }) =
         >
           ← Back to Selection
         </button>
+      </div>
+
+      {/* Diff Precision Toggle */}
+      <div className="flex items-center justify-between p-3 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+        <p className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase">Diff Precision</p>
+        <div className="inline-flex rounded-lg border border-slate-300 dark:border-slate-600 overflow-hidden" role="group" aria-label="Diff precision toggle">
+          <button
+            type="button"
+            onClick={() => setDiffMode("char")}
+            aria-pressed={diffMode === "char"}
+            className={`px-4 py-1.5 text-sm font-semibold transition-all ${
+              diffMode === "char"
+                ? "bg-indigo-600 text-white"
+                : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+            }`}
+          >
+            Character Level
+          </button>
+          <button
+            type="button"
+            onClick={() => setDiffMode("word")}
+            aria-pressed={diffMode === "word"}
+            className={`px-4 py-1.5 text-sm font-semibold transition-all border-l border-slate-300 dark:border-slate-600 ${
+              diffMode === "word"
+                ? "bg-indigo-600 text-white"
+                : "bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+            }`}
+          >
+            Word Level
+          </button>
+        </div>
       </div>
 
       {/* Comparison Stats */}
