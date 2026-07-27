@@ -423,11 +423,16 @@ ${ncxNavPoints}  </navMap>
       </div>
 
       <div className="max-w-4xl mx-auto">
+        {/* Single h1 for the story title — SEO and accessibility primary landmark */}
+        {chapters[0] && (
+          <h1 className="sr-only">{chapters[0].title}</h1>
+        )}
         {chapters.map((chapter) => (
           <div key={chapter.id} className="mb-16">
-            <h1 className="text-4xl font-extrabold tracking-tight text-white mb-6">
+            {/* h2: chapter titles are sub-sections, not page titles */}
+            <h2 className="text-4xl font-extrabold tracking-tight text-white mb-6">
               {chapter.title}
-            </h1>
+            </h2>
             <ReadingTimeBadge text={chapter.content} />
             <p className="text-lg text-zinc-300 whitespace-pre-line leading-9">
               {chapter.content}
