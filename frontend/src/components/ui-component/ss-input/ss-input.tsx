@@ -53,7 +53,7 @@ const SSInput = <T extends FieldValues>({
       </label>
 
 
-      <div className="relative mt-2 flex items-center w-full min-w-0">
+      <div className="relative mt-2 flex items-center w-full min-w-0 max-w-full box-border">
         {icon && (
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 flex items-center pointer-events-none">
             <i className={icon}></i>
@@ -67,7 +67,7 @@ const SSInput = <T extends FieldValues>({
           autoComplete={autoComplete}
           autoFocus={autoFocus}
           {...register(name, validation)}
-        className={`w-full box-border max-w-full min-w-0 h-11 block rounded-xl border text-sm transition-all duration-200 ${
+        className={`ss-input w-full box-border max-w-full min-w-0 h-11 block rounded-xl border text-sm transition-all duration-200 ${
           icon ? "pl-10" : "px-4"
         } ${isPasswordType ? "pr-10" : "pr-4"} ${
           error

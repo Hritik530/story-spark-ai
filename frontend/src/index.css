@@ -101,7 +101,13 @@ body {
    order. Targeting .ss-input directly, with !important, removes that
    ambiguity. See issue #4756.
    ========================================================================== */
-.ss-input {
+.ss-input,
+.ds-input,
+.auth-field,
+.auth-form-card input,
+.auth-container input,
+.ds-input-group input,
+.input-icon-wrapper input {
   min-width: 0 !important;
   max-width: 100% !important;
   width: 100% !important;
@@ -114,6 +120,7 @@ textarea,
 button {
   min-width: 0;
   max-width: 100%;
+  box-sizing: border-box;
 }
 
 body {
