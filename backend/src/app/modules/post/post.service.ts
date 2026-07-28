@@ -45,8 +45,8 @@ const decodeCursor = (cursor?: string): ICursorPayload | null => {
       return null;
     }
     return parsed as ICursorPayload;
-  } catch {
-    return null;
+  } catch (error) {
+    console.error('[PostService] Failed to add XP:', error);
   }
 };
 
