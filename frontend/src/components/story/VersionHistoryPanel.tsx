@@ -18,6 +18,10 @@ const VersionHistoryPanel = () => {
     (state: RootState) => state.story.currentStory
   );
 
+  const currentVersionId = useSelector(
+    (state: RootState) => state.story.currentVersionId
+  );
+
   if (!versions.length) {
     return (
       <div className="w-72 bg-zinc-900 h-screen border-r border-zinc-800 p-5">
@@ -51,9 +55,8 @@ const VersionHistoryPanel = () => {
 
       <div className="space-y-3">
         {reversedVersions.map((version, index) => {
-          const isCurrent =
-            currentStory?.chapters.length ===
-            version.chapterCount;
+          // Compare by ID — chapter count is not unique across versions
+          const isCurrent = currentVersionId === version.id;
 
           return (
             <div
