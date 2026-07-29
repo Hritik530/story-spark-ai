@@ -27,7 +27,10 @@ export const getGenreTheme = (tag: string) => {
   return { gradient: "45deg, #1e1b4b, #311042", accent: "#a855f7", icon: "✨" };
 };
 
-export const getInitials = (title: string) => title.slice(0, 2).toUpperCase();
+export const getInitials = (title: string): string => {
+  const trimmed = (title || "").trim();
+  return trimmed.slice(0, 2).toUpperCase() || "?";
+};
 
 export type StorySentenceSegment = {
   id: string;
