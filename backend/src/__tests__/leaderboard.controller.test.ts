@@ -4,7 +4,7 @@
  * Unit tests for the getWeeklyLeaderboard controller.
  * Tests the weekly aggregation pipeline, scoring, and response shape.
  *
- * Run: pnpm --filter story-spark-ai-backend test -- --colors=false
+ * Run: cd backend && ../node_modules/.bin/jest src/__tests__/leaderboard.controller.test.ts --colors=false
  */
 
 import { Request, Response } from "express";
@@ -25,8 +25,7 @@ import { Post } from "../app/modules/post/post.model";
 import { User } from "../app/modules/user/user.model";
 import { getWeeklyLeaderboard } from "../app/modules/leaderboard/leaderboard.controller";
 
-const mockPostAggregate = Post.aggregate as jest.MockedFunction<typeof Post.aggregate>;
-const mockUserFindById = User.findById as jest.MockedFunction<typeof User.findById>;
+const mockPostAggregate = Post.aggregate as any;
 
 describe("getWeeklyLeaderboard", () => {
   let mockReq: Partial<Request>;
@@ -46,33 +45,27 @@ describe("getWeeklyLeaderboard", () => {
   });
 
   it("returns 200 with ranked leaderboard data on success", async () => {
-    const now = new Date();
-    const userId = { toString: () => "user-123" } as any;
-
+    // The mock must return the data as MongoDB's $project stage would produce it.
     mockPostAggregate.mockResolvedValueOnce([
       {
-        _id: userId,
+        authorId: "user-1",
+        name: "Jane Doe",
+        avatar: "https://example.com/avatar.png",
         storiesCount: 5,
+        creativeScore: 1240,
         totalViews: 800,
         totalLikes: 120,
         totalComments: 50,
-        creativeScore: 1240,
-        userInfo: {
-          name: "Jane Doe",
-          profile: { avatar: "https://example.com/avatar.png" },
-        },
       },
       {
-        _id: userId,
+        authorId: "user-2",
+        name: "John Smith",
+        avatar: "",
         storiesCount: 3,
+        creativeScore: 420,
         totalViews: 300,
         totalLikes: 30,
         totalComments: 10,
-        creativeScore: 420,
-        userInfo: {
-          name: "John Smith",
-          profile: { avatar: "" },
-        },
       },
     ]);
 
@@ -108,17 +101,16 @@ describe("getWeeklyLeaderboard", () => {
   });
 
   it("uses Anonymous for users with no userInfo", async () => {
-    const userId = { toString: () => "user-456" } as any;
-
     mockPostAggregate.mockResolvedValueOnce([
       {
-        _id: userId,
+        authorId: "user-456",
+        name: "Anonymous",
+        avatar: "",
         storiesCount: 1,
+        creativeScore: 140,
         totalViews: 100,
         totalLikes: 10,
         totalComments: 5,
-        creativeScore: 140,
-        userInfo: null,
       },
     ]);
 
@@ -155,18 +147,17 @@ describe("getWeeklyLeaderboard", () => {
   });
 
   it("rounds creativeScore to an integer", async () => {
-    const userId = { toString: () => "user-789" } as any;
-
     // creativeScore may come back as a float from aggregation
     mockPostAggregate.mockResolvedValueOnce([
       {
-        _id: userId,
+        authorId: "user-789",
+        name: "Alice",
+        avatar: "https://x.com/a.png",
         storiesCount: 2,
+        creativeScore: 740.5,
         totalViews: 500,
         totalLikes: 50,
         totalComments: 20,
-        creativeScore: 740.5,
-        userInfo: { name: "Alice", profile: { avatar: "https://x.com/a.png" } },
       },
     ]);
 
