@@ -155,7 +155,8 @@ const PostDetailsComponent = () => {
 
     try {
       await toggleFollow(authorId).unwrap();
-    } catch {
+    } catch (error) {
+      console.error("Failed to update follow status", error);
       toast.error("Failed to update follow status");
     }
   };
@@ -276,7 +277,8 @@ const PostDetailsComponent = () => {
     await navigator.clipboard.writeText(window.location.href);
     toast.success("Link copied to clipboard!");
     setShowShareMenu(false);
-  } catch {
+  } catch (error) {
+    console.error("Failed to copy link", error);
     toast.error("Failed to copy link.");
   }
 };
@@ -307,7 +309,8 @@ const PostDetailsComponent = () => {
       await deletePost(id).unwrap();
       toast.success("Story removed successfully.");
       navigate("/explore");
-    } catch {
+    } catch (error) {
+      console.error("Failed to delete post", error);
       toast.error("Unable to remove this story. Please try again.");
     }
   };
