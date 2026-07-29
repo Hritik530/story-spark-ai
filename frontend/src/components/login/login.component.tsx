@@ -79,11 +79,13 @@ const LoginComponent = () => {
         const from = location.state?.from || "/dashboard";
         try {
           navigate(from, { replace: true });
-        } catch {
+        } catch (error) {
+          console.error("Navigation after login failed", error);
           window.location.href = from;
         }
       }
-    } catch {
+    } catch (error) {
+      console.error("Google login failed", error);
       toast.error("Failed to login with Google. Please try again.");
     } finally {
       setIsBusy(false);
