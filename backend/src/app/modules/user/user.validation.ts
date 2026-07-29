@@ -57,6 +57,8 @@ const updateUser = z.object({
               twitter: z.string().optional(),
               linkedin: z.string().optional(),
               instagram: z.string().optional(),
+              github: z.string().optional(),
+              discord: z.string().optional(),
             })
             .partial()
             .strict()
