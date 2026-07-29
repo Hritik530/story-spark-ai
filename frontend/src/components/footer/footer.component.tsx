@@ -47,7 +47,8 @@ const FooterComponent: React.FC = () => {
         setStatus("error");
         setMessage(data.message || "Something went wrong.");
       }
-    } catch {
+    } catch (error) {
+      console.error("Newsletter subscription failed", error);
       setStatus("error");
       setMessage("Network error. Please try again.");
     }
