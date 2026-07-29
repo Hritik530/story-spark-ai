@@ -58,7 +58,7 @@ export const buildSentenceSegments = (content: string): StorySentenceSegment[] =
 
     segments.push({
       id: `${index}-${startWordIndex}-${endWordIndex}`,
-      text: sentence,
+      text: trimmedSentence, // Use trimmed text — sentence includes trailing \s* from regex
       startWordIndex,
       endWordIndex,
     });
