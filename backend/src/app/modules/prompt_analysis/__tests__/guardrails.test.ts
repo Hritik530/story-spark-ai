@@ -1,4 +1,3 @@
-import { describe, it, expect } from "vitest";
 import { PromptAnalysisService } from "../prompt_analysis.service";
 
 describe("Prompt Analysis Guardrails Security Tests (#5466)", () => {
