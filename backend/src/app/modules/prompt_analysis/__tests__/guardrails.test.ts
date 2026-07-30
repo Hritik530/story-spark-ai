@@ -1,3 +1,4 @@
+import { describe, it, expect } from "@jest/globals";
 import { PromptAnalysisService } from "../prompt_analysis.service";
 
 describe("Prompt Analysis Guardrails Security Tests (#5466)", () => {
