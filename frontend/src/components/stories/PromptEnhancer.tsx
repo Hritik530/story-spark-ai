@@ -28,7 +28,11 @@ const PromptEnhancer = ({ prompt, onPromptChange }: PromptEnhancerProps) => {
   const handleEnhance = async () => {
     if (!prompt.trim() || isEnhancing) return;
 
-    setOriginalPrompt(prompt);
+    // Only save the original prompt on the first enhancement —
+    // subsequent enhancements should still revert to the true original
+    if (originalPrompt === null) {
+      setOriginalPrompt(prompt);
+    }
 
     try {
       const result = await enhancePrompt({ prompt: prompt.trim(), provider: selectedModel }).unwrap();
@@ -70,10 +74,10 @@ const PromptEnhancer = ({ prompt, onPromptChange }: PromptEnhancerProps) => {
       <button
         type="button"
         onClick={handleEnhance}
-        disabled={isEnhancing || !prompt.trim()}
+        disabled={isEnhancing || !prompt.trim() || isEnhanced}
         className={`flex items-center gap-2 rounded-full border px-4 py-2 text-sm transition-all duration-300
           ${
-            isEnhancing || !prompt.trim()
+            isEnhancing || !prompt.trim() || isEnhanced
               ? "cursor-not-allowed border-white/10 bg-white/5 text-slate-500"
               : "border-cyan-300/40 bg-cyan-300/10 text-cyan-100 hover:bg-cyan-300/20"
           }`}
