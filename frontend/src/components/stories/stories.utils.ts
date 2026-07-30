@@ -238,10 +238,11 @@ export const analyzeStoryEmotion = (content: string) => {
     ])
   );
 
+  // Only determine a dominant emotion if at least one keyword was matched
   const dominantEmotion =
-    Object.entries(scores).sort(
-      (a, b) => b[1] - a[1]
-    )[0][0];
+    total > 0
+      ? Object.entries(scores).sort((a, b) => b[1] - a[1])[0][0]
+      : "Neutral";
 
   return {
     scores: percentages,
