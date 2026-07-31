@@ -250,10 +250,10 @@ const ContinueStoryModal = ({ story, onClose, onApply }: ContinueStoryModalProps
                   placeholder="The story continues..."
                   className="w-full resize-none rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-slate-200 placeholder-slate-600 outline-none focus:border-indigo-400/50 focus:ring-1 focus:ring-indigo-400/20 transition-all leading-6"
                 />
-                {/* ── Dynamic Character Counter ── */}
-                 <div className="absolute bottom-3 right-4 text-[11px] font-medium text-slate-400 bg-slate-950/80 px-2 py-0.5 rounded-md backdrop-blur-sm pointer-events-none select-none tracking-wider border border-white/5">
-                 {prompt ? prompt.length : 0} / 500
-                 </div>
+                {/* ── Word Counter — story context can be very long, count words not chars ── */}
+                <div className="absolute bottom-3 right-4 text-[11px] font-medium text-slate-400 bg-slate-950/80 px-2 py-0.5 rounded-md backdrop-blur-sm pointer-events-none select-none tracking-wider border border-white/5">
+                  {prompt.trim() ? prompt.trim().split(/\s+/).length : 0} words
+                </div>
               </div>
               <p className="mt-1.5 text-[10px] text-slate-600 flex justify-between items-center">
                 <span>
