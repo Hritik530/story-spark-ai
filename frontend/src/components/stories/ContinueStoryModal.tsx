@@ -91,7 +91,11 @@ const ContinueStoryModal = ({ story, onClose, onApply }: ContinueStoryModalProps
         }).unwrap();
       }
 
-      const continuation = result.data.continuation;
+      const continuation = result?.data?.continuation;
+      if (!continuation || typeof continuation !== "string") {
+        throw new Error("Invalid response: missing continuation field");
+      }
+
       const newBranch: BranchNode = {
         id: `branch-${Date.now()}`,
         parentId: activeBranchId,
