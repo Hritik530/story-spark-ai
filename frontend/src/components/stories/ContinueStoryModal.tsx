@@ -110,7 +110,9 @@ const ContinueStoryModal = ({ story, onClose, onApply }: ContinueStoryModalProps
 
   const handleExtendBranch = (branch: BranchNode) => {
     setActiveBranchId(branch.id);
-    setPrompt(branch.continuation);
+    // Use the full story path (original + all parent continuations) as context
+    // so the AI has complete narrative context when generating the next branch
+    setPrompt(getFullContent(branch.id));
   };
 
   const handleApply = () => {
