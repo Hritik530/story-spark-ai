@@ -19,6 +19,10 @@ import { runWithQuotaCleanup } from "../app/modules/ai_model/quota.lifecycle";
 import mongoose from "mongoose";
 import { Post } from "../app/modules/post/post.model";
 import rateLimit from "express-rate-limit";
+import idempotencyMiddleware, {
+  completeIdempotentRequest,
+  releaseIdempotentRequest,
+} from "../app/middleware/idempotency.middleware";
 
 const router = express.Router();
 
