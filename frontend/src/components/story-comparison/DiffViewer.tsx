@@ -37,7 +37,11 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ version1, version2, onBack }) =
       total += diff.value.length;
     });
 
-    return { added, removed, total, similarity: total > 0 ? ((total - (added + removed)) / total * 100).toFixed(1) : 100 };
+    const unchangedChars = total - added - removed;
+    const similarityValue = total > 0
+      ? ((unchangedChars / total) * 100).toFixed(1)
+      : "100.0";
+    return { added, removed, total, similarity: similarityValue };
   }, [differences]);
 
   const titleDiff = useMemo(() => {
@@ -93,6 +97,10 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ version1, version2, onBack }) =
         <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-700">
           <p className="text-xs font-semibold text-red-600 dark:text-red-400 uppercase">Removed</p>
           <p className="text-lg font-bold text-red-900 dark:text-red-200">{stats.removed}</p>
+        </div>
+        <div className="p-4 bg-slate-50 dark:bg-slate-800/60 rounded-lg border border-slate-200 dark:border-slate-600 col-span-2 md:col-span-4">
+          <p className="text-xs font-semibold text-slate-600 dark:text-slate-400 uppercase">Similarity</p>
+          <p className="text-lg font-bold text-slate-900 dark:text-slate-200">{stats.similarity}%</p>
         </div>
       </div>
 
