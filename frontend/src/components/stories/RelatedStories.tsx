@@ -9,7 +9,10 @@ export interface IRelatedStoriesComponentProps {
 
 export const RelatedStoriesComponent: React.FC<IRelatedStoriesComponentProps> = ({ posts, currentPostId }) => {
   const navigate = useNavigate();
-  const filteredPosts = posts.filter((post) => post._id !== currentPostId);
+  const MAX_RELATED = 4;
+  const filteredPosts = posts
+    .filter((post) => post._id !== currentPostId)
+    .slice(0, MAX_RELATED);
 
   return (
     <div className="mt-8">
