@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import toast from "react-hot-toast";
 import VariationSelector from "./VariationSelector";
 import DiffViewer from "./DiffViewer";
 
@@ -32,7 +33,12 @@ const ComparisonMode: React.FC<ComparisonModeProps> = ({
   const [showComparison, setShowComparison] = useState(false);
 
   const handleCompare = () => {
-    if (!selectedVersion1 || !selectedVersion2 || selectedVersion1._id === selectedVersion2._id) {
+    if (!selectedVersion1 || !selectedVersion2) {
+      toast.error("Please select two versions to compare.");
+      return;
+    }
+    if (selectedVersion1._id === selectedVersion2._id) {
+      toast.error("Please select two different versions — you selected the same version twice.");
       return;
     }
 
