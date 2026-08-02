@@ -28,19 +28,14 @@ const ComparisonMode: React.FC<ComparisonModeProps> = ({
 }) => {
   const [selectedVersion1, setSelectedVersion1] = useState<IStoryVersion | null>(null);
   const [selectedVersion2, setSelectedVersion2] = useState<IStoryVersion | null>(null);
-  const [isComparing, setIsComparing] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
 
   const handleCompare = () => {
     if (!selectedVersion1 || !selectedVersion2 || selectedVersion1._id === selectedVersion2._id) {
       return;
     }
-
-    setIsComparing(true);
-    setTimeout(() => {
-      setIsComparing(false);
-      setShowComparison(true);
-    }, 300);
+    // No async operation — transition directly, no fake timeout needed
+    setShowComparison(true);
   };
 
   const handleBackToSelection = () => {
@@ -97,7 +92,7 @@ const ComparisonMode: React.FC<ComparisonModeProps> = ({
           onSelectVersion1={setSelectedVersion1}
           onSelectVersion2={setSelectedVersion2}
           onCompare={handleCompare}
-          isLoading={isComparing}
+          isLoading={false}
         />
       ) : selectedVersion1 && selectedVersion2 ? (
         <DiffViewer
