@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useRef, useCallback } from "react";
 import { diffChars, Change } from "jsdiff";
 import DiffHighlight from "./DiffHighlight";
 
@@ -43,6 +43,25 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ version1, version2, onBack }) =
   const titleDiff = useMemo(() => {
     return diffChars(version1.title, version2.title);
   }, [version1.title, version2.title]);
+
+  // Synchronized scroll — mirrors scroll position across both content panels
+  const panel1Ref = useRef<HTMLDivElement>(null);
+  const panel2Ref = useRef<HTMLDivElement>(null);
+  const isSyncingRef = useRef(false);
+
+  const handlePanel1Scroll = useCallback(() => {
+    if (isSyncingRef.current || !panel1Ref.current || !panel2Ref.current) return;
+    isSyncingRef.current = true;
+    panel2Ref.current.scrollTop = panel1Ref.current.scrollTop;
+    isSyncingRef.current = false;
+  }, []);
+
+  const handlePanel2Scroll = useCallback(() => {
+    if (isSyncingRef.current || !panel1Ref.current || !panel2Ref.current) return;
+    isSyncingRef.current = true;
+    panel1Ref.current.scrollTop = panel2Ref.current.scrollTop;
+    isSyncingRef.current = false;
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -153,7 +172,7 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ version1, version2, onBack }) =
                 {version1.generationType}
               </span>
             </div>
-            <div className="overflow-y-auto max-h-[500px] p-4 bg-white dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-700">
+            <div ref={panel1Ref} onScroll={handlePanel1Scroll} className="overflow-y-auto max-h-[500px] p-4 bg-white dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-700">
               <p className="text-sm text-slate-900 dark:text-white leading-relaxed whitespace-pre-wrap">
                 {differences.map((diff: Change, idx: number) => (
                   <span key={idx}>
@@ -182,7 +201,7 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ version1, version2, onBack }) =
                 {version2.generationType}
               </span>
             </div>
-            <div className="overflow-y-auto max-h-[500px] p-4 bg-white dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-700">
+            <div ref={panel2Ref} onScroll={handlePanel2Scroll} className="overflow-y-auto max-h-[500px] p-4 bg-white dark:bg-slate-900 rounded border border-slate-200 dark:border-slate-700">
               <p className="text-sm text-slate-900 dark:text-white leading-relaxed whitespace-pre-wrap">
                 {differences.map((diff: Change, idx: number) => (
                   <span key={idx}>
