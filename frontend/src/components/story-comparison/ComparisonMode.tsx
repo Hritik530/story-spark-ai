@@ -44,9 +44,9 @@ const ComparisonMode: React.FC<ComparisonModeProps> = ({
   };
 
   const handleBackToSelection = () => {
+    // Keep both selections so the user only needs to change the one they want —
+    // clearing both on every back forces redundant reselection for common workflows
     setShowComparison(false);
-    setSelectedVersion1(null);
-    setSelectedVersion2(null);
   };
 
   if (isLoadingVersions) {
