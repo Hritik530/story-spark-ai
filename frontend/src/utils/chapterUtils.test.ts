@@ -1,6 +1,4 @@
-/**
- * @jest-environment jsdom
- */
+import { describe, it, expect } from 'vitest';
 import { splitIntoChapters, renumberChapters, type Chapter } from "./chapterUtils";
 
 describe("splitIntoChapters", () => {
