@@ -33,3 +33,5 @@ export const truncateText = (
   }
 
   return truncated + suffix;
+
+}
