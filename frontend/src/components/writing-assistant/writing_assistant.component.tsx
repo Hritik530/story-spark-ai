@@ -72,6 +72,8 @@ export default function AIWritingAssistant() {
   const [deleting, setDeleting] = useState(false);
   const [visible, setVisible] = useState(false);
   const navigate = useNavigate();
+  const [ctaHovered, setCtaHovered] = useState(false);
+  const [ctaPressed, setCtaPressed] = useState(false);
 
   useEffect(() => {
     setVisible(true);
@@ -335,6 +337,10 @@ export default function AIWritingAssistant() {
         </p>
         <button
           onClick={() => navigate("/stories")}
+          onMouseEnter={() => setCtaHovered(true)}
+          onMouseLeave={() => { setCtaHovered(false); setCtaPressed(false); }}
+          onMouseDown={() => setCtaPressed(true)}
+          onMouseUp={() => setCtaPressed(false)}
           style={{
             background: "linear-gradient(135deg, #7C5DFA 0%, #4F8EF7 100%)",
             border: "none",
@@ -346,25 +352,14 @@ export default function AIWritingAssistant() {
             fontFamily: "'Georgia', serif",
             letterSpacing: "0.02em",
             transition: "all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1)",
-            boxShadow: "0 4px 14px rgba(124, 93, 250, 0.2)",
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-3px)";
-            (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 8px 24px rgba(124, 93, 250, 0.4)";
-            (e.currentTarget as HTMLButtonElement).style.filter = "brightness(1.1)";
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
-            (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 4px 14px rgba(124, 93, 250, 0.2)";
-            (e.currentTarget as HTMLButtonElement).style.filter = "brightness(1)";
-          }}
-          onMouseDown={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(1px)";
-            (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 2px 8px rgba(124, 93, 250, 0.3)";
-          }}
-          onMouseUp={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-3px)";
-            (e.currentTarget as HTMLButtonElement).style.boxShadow = "0 8px 24px rgba(124, 93, 250, 0.4)";
+            // Derived from React state — never overwritten by reconciliation
+            transform: ctaPressed ? "translateY(1px)" : ctaHovered ? "translateY(-3px)" : "translateY(0)",
+            boxShadow: ctaPressed
+              ? "0 2px 8px rgba(124, 93, 250, 0.3)"
+              : ctaHovered
+              ? "0 8px 24px rgba(124, 93, 250, 0.4)"
+              : "0 4px 14px rgba(124, 93, 250, 0.2)",
+            filter: ctaHovered ? "brightness(1.1)" : "brightness(1)",
           }}
         >
           Try the Assistant — It's Free →
