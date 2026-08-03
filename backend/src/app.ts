@@ -66,18 +66,20 @@ app.use(
   })
 );
 
-
 // Rate limiter — placed after CORS so OPTIONS preflight requests are
 // never counted against the limit before CORS has a chance to respond.
 app.use(globalRateLimiter);
 
-// ─── 1. FIXED: ENFORCED HARDENED PAYLOAD LIMITS TO PREVENT DoS ───
-app.use(express.json({ limit: "2mb" }));
-app.use(express.urlencoded({ extended: true, limit: "2mb" }));
-app.use(cookieParser());
+// Payload limit set to 10mb to support large story content and character
+// network data without triggering 413 errors. Previously 2mb, which was
+// too restrictive for real story payloads — see PR discussion if this
+// needs revisiting against DoS-hardening concerns.
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
+app.use(cookieParser() as unknown as RequestHandler);
 app.use(sanitizeAllMiddleware);
 
-// Legacy Route Rewrite Rewrite Rules
+// Legacy Route Rewrite Rules
 app.use((req, res, next) => {
   if (
     req.method === "GET" &&
@@ -103,8 +105,6 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
   ];
   next(error);
 });
-
 app.use(globalErrorHandler);
 
 export default app;
-export { defaultCorsOrigins };
