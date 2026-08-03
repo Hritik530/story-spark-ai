@@ -1,4 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+/// <reference types="vitest/globals" />
+import { vi } from "vitest";
 
 describe("config helpers", () => {
   beforeEach(() => {
