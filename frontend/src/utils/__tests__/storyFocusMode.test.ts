@@ -14,7 +14,7 @@ describe("storyFocusMode", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    Object.defineProperty(global, "localStorage", {
+    Object.defineProperty(globalThis, "localStorage", {
       value: localStorageMock,
       writable: true,
     });
