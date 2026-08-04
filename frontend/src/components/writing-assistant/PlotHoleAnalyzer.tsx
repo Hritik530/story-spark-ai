@@ -30,7 +30,12 @@ export default function PlotHoleAnalyzer({ storyText }: PlotHoleAnalyzerProps) {
     const toastId = toast.loading("AI Editor is reviewing your story...");
 
     try {
-      const baseUrl = getBaseUrl() || import.meta.env.VITE_BASE_URL || "";
+      const baseUrl = getBaseUrl() || import.meta.env.VITE_BASE_URL;
+      if (!baseUrl) {
+        throw new Error(
+          "API base URL is not configured. Set VITE_BASE_URL in your environment."
+        );
+      }
       const response = await axios.post(`${baseUrl}/ai-editor/analyze`, {
         storyText,
       });
