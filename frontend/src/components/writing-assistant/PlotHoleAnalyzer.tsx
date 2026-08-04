@@ -19,9 +19,17 @@ export default function PlotHoleAnalyzer({ storyText }: PlotHoleAnalyzerProps) {
   const [plotHoles, setPlotHoles] = useState<IPlotHole[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const MIN_STORY_LENGTH = 150;
+
   const handleAnalyze = async () => {
     if (!storyText || storyText.trim().length === 0) {
       toast.error("Please provide a story draft to analyze.");
+      return;
+    }
+    if (storyText.trim().length < MIN_STORY_LENGTH) {
+      toast.error(
+        `Story is too short for analysis. Please provide at least ${MIN_STORY_LENGTH} characters.`
+      );
       return;
     }
 
