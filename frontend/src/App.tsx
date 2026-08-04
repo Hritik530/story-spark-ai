@@ -356,6 +356,7 @@ function App() {
   return (
     <>
       <Toaster position="top-right" />
+      <MagicCursorComponent />
       <RouterProvider router={router} />
     </>
   );
