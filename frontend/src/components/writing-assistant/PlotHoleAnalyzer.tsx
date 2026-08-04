@@ -48,9 +48,11 @@ export default function PlotHoleAnalyzer({ storyText }: PlotHoleAnalyzerProps) {
         storyText,
       });
 
-      if (response.data && response.data.success) {
-        setPlotHoles(response.data.data.plot_holes);
-        const count = response.data.data.plot_holes.length;
+      const plotHolesData = response.data?.data?.plot_holes;
+
+      if (response.data?.success && Array.isArray(plotHolesData)) {
+        setPlotHoles(plotHolesData);
+        const count = plotHolesData.length;
         if (count === 0) {
           toast.success("Brilliant! No logical consistency errors found.", { id: toastId });
         } else {
