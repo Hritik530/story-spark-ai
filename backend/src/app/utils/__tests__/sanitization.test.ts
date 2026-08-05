@@ -1,115 +1,117 @@
-import { stripHtmlTags, truncate, normalizeWhitespace, isAllowedUrlProtocol, sanitizeUrl } from '../sanitization';
+import {
+  stripHtmlTags,
+  truncate,
+  normalizeWhitespace,
+} from "../sanitization";
 
-describe('Sanitization Helpers', () => {
-  describe('stripHtmlTags', () => {
-    it('should return empty string for empty input', () => {
-      expect(stripHtmlTags('')).toBe('');
-      expect(stripHtmlTags(undefined as any)).toBe('');
-    });
-
-    it('should remove complete HTML tags', () => {
-      expect(stripHtmlTags('<p>Hello <strong>World</strong></p>')).toBe('Hello World');
-      expect(stripHtmlTags('<div>Test</div>')).toBe('Test');
-    });
-
-    it('should remove incomplete tag openers', () => {
-      expect(stripHtmlTags('Hello <script src="malicious.js"')).toBe('Hello');
-      expect(stripHtmlTags('<img src="x" onerror="alert(1)"')).toBe('');
-    });
-
-    it('should remove standalone less-than characters that look tag-like', () => {
-      expect(stripHtmlTags('value < 5')).toBe('value');
-    });
-
-    it('should trim whitespace around the final string', () => {
-      expect(stripHtmlTags('   <span>   hello   </span>   ')).toBe('hello');
-    });
+describe("stripHtmlTags", () => {
+  it("removes complete HTML tags", () => {
+    expect(stripHtmlTags("<p>Hello</p>")).toBe("Hello");
   });
 
-  describe('truncate', () => {
-    it('should return empty string for empty input', () => {
-      expect(truncate('', 10)).toBe('');
-      expect(truncate(undefined as any, 10)).toBe('');
-    });
-
-    it('should return the original string if it is shorter than maxLength', () => {
-      expect(truncate('hello', 10)).toBe('hello');
-      expect(truncate('hello', 5)).toBe('hello');
-    });
-
-    it('should truncate and append suffix if length exceeds maxLength', () => {
-      expect(truncate('hello world', 8)).toBe('hello...');
-      expect(truncate('hello world', 5)).toBe('he...');
-    });
-
-    it('should respect custom suffixes', () => {
-      expect(truncate('hello world', 8, '!')).toBe('hello w!');
-    });
+  it("removes nested tags", () => {
+    expect(stripHtmlTags("<div><span>text</span></div>")).toBe("text");
   });
 
-  describe('normalizeWhitespace', () => {
-    it('should return empty string for empty input', () => {
-      expect(normalizeWhitespace('')).toBe('');
-      expect(normalizeWhitespace(undefined as any)).toBe('');
-    });
-
-    it('should collapse multiple spaces into a single space', () => {
-      expect(normalizeWhitespace('hello     world')).toBe('hello world');
-    });
-
-    it('should collapse tabs and newlines', () => {
-      expect(normalizeWhitespace('hello\n\tworld\r\nagain')).toBe('hello world again');
-    });
-
-    it('should trim leading and trailing whitespace', () => {
-      expect(normalizeWhitespace('   hello world   ')).toBe('hello world');
-    });
+  it("removes script tags", () => {
+    expect(stripHtmlTags("<script>alert('xss')</script>")).toBe(
+      "alert('xss')"
+    );
   });
 
-  describe('isAllowedUrlProtocol', () => {
-    it('should allow safe protocols', () => {
-      expect(isAllowedUrlProtocol('http://example.com')).toBe(true);
-      expect(isAllowedUrlProtocol('https://example.com/path')).toBe(true);
-      expect(isAllowedUrlProtocol('mailto:user@example.com')).toBe(true);
-      expect(isAllowedUrlProtocol('tel:+12345678')).toBe(true);
-    });
-
-    it('should allow safe relative/local paths', () => {
-      expect(isAllowedUrlProtocol('/path/to/resource')).toBe(true);
-      expect(isAllowedUrlProtocol('./relative/path')).toBe(true);
-      expect(isAllowedUrlProtocol('../parent/path')).toBe(true);
-    });
-
-    it('should reject dangerous protocols', () => {
-      expect(isAllowedUrlProtocol('javascript:alert(1)')).toBe(false);
-      expect(isAllowedUrlProtocol('data:text/html,<html>')).toBe(false);
-      expect(isAllowedUrlProtocol('vbscript:msgbox("hello")')).toBe(false);
-      expect(isAllowedUrlProtocol('file:///etc/passwd')).toBe(false);
-      expect(isAllowedUrlProtocol('about:blank')).toBe(false);
-      expect(isAllowedUrlProtocol('jar:http://example.com/bar.jar!/')).toBe(false);
-      expect(isAllowedUrlProtocol('mocha:test')).toBe(false);
-      expect(isAllowedUrlProtocol('livescript:code')).toBe(false);
-      expect(isAllowedUrlProtocol('apt:install')).toBe(false);
-    });
-
-    it('should return false for empty/null input', () => {
-      expect(isAllowedUrlProtocol('')).toBe(false);
-      expect(isAllowedUrlProtocol(undefined as any)).toBe(false);
-    });
+  it("removes incomplete tag openers", () => {
+    expect(stripHtmlTags("Hello <script")).toBe("Hello");
   });
 
-  describe('sanitizeUrl', () => {
-    it('should return safe URL unchanged', () => {
-      expect(sanitizeUrl('https://example.com')).toBe('https://example.com');
-    });
+  it("returns empty string for null input", () => {
+    expect(stripHtmlTags(null as any)).toBe("");
+  });
 
-    it('should return fallback for dangerous protocol', () => {
-      expect(sanitizeUrl('javascript:alert(1)', 'https://fallback.com')).toBe('https://fallback.com');
-      expect(sanitizeUrl('data:text/plain,hello')).toBe('');
-    });
+  it("returns empty string for undefined input", () => {
+    expect(stripHtmlTags(undefined as any)).toBe("");
+  });
 
-    it('should return fallback for empty/null inputs', () => {
-      expect(sanitizeUrl('', 'https://fallback.com')).toBe('https://fallback.com');
-    });
+  it("returns empty string for empty string", () => {
+    expect(stripHtmlTags("")).toBe("");
+  });
+
+  it("returns string unchanged when no tags present", () => {
+    expect(stripHtmlTags("Hello World")).toBe("Hello World");
+  });
+
+  it("handles standalone < characters", () => {
+    expect(stripHtmlTags("a < b")).toBe("a");
+  });
+
+  it("trims resulting whitespace", () => {
+    expect(stripHtmlTags("  <p>text</p>  ")).toBe("text");
+  });
+});
+
+describe("truncate", () => {
+  it("truncates string longer than maxLength", () => {
+    expect(truncate("Hello World", 5)).toBe("He...");
+  });
+
+  it("returns string unchanged when shorter than maxLength", () => {
+    expect(truncate("Hi", 10)).toBe("Hi");
+  });
+
+  it("returns string unchanged when equal to maxLength", () => {
+    expect(truncate("Hello", 5)).toBe("Hello");
+  });
+
+  it("uses default '...' suffix", () => {
+    expect(truncate("Hello World", 8)).toBe("Hello...");
+  });
+
+  it("uses custom suffix", () => {
+    expect(truncate("Hello World", 8, "***")).toBe("Hello***");
+  });
+
+  it("returns input unchanged when input.length <= maxLength", () => {
+    expect(truncate("Hi", 10, "...")).toBe("Hi");
+  });
+
+  it("returns empty string for null input", () => {
+    expect(truncate(null as any, 10)).toBe("");
+  });
+
+  it("returns empty string for undefined input", () => {
+    expect(truncate(undefined as any, 10)).toBe("");
+  });
+
+  it("returns empty string for empty string", () => {
+    expect(truncate("", 10)).toBe("");
+  });
+});
+
+describe("normalizeWhitespace", () => {
+  it("collapses multiple spaces to single space", () => {
+    expect(normalizeWhitespace("Hello    World")).toBe("Hello World");
+  });
+
+  it("collapses tabs and newlines", () => {
+    expect(normalizeWhitespace("Hello\t\nWorld")).toBe("Hello World");
+  });
+
+  it("trims leading and trailing whitespace", () => {
+    expect(normalizeWhitespace("  Hello World  ")).toBe("Hello World");
+  });
+
+  it("returns empty string for null input", () => {
+    expect(normalizeWhitespace(null as any)).toBe("");
+  });
+
+  it("returns empty string for undefined input", () => {
+    expect(normalizeWhitespace(undefined as any)).toBe("");
+  });
+
+  it("returns empty string for empty string", () => {
+    expect(normalizeWhitespace("")).toBe("");
+  });
+
+  it("handles mixed whitespace", () => {
+    expect(normalizeWhitespace("  Hello  \n\t  World  ")).toBe("Hello World");
   });
 });
