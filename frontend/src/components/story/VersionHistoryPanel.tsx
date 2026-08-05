@@ -20,7 +20,7 @@ const VersionHistoryPanel = () => {
 
   if (!versions.length) {
     return (
-      <div className="w-72 bg-zinc-900 h-screen border-r border-zinc-800 p-5">
+      <div className="w-72 bg-zinc-900 h-full border-r border-zinc-800 p-5">
         <h2 className="text-2xl font-bold text-white mb-6">
           Version History
         </h2>
@@ -39,7 +39,7 @@ const VersionHistoryPanel = () => {
   const reversedVersions = [...versions].reverse();
 
   return (
-    <div className="w-72 bg-zinc-900 h-screen border-r border-zinc-800 p-5 overflow-y-auto">
+    <div className="w-72 bg-zinc-900 h-full border-r border-zinc-800 p-5 overflow-y-auto">
       <h2 className="text-2xl font-bold text-white mb-2">
         Version History
       </h2>
