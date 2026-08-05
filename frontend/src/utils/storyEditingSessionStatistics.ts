@@ -48,9 +48,13 @@ export function calculateEditingSession(
 }
 
 export function getSessionHistory(): EditingSessionHistory[] {
-  return JSON.parse(
-    localStorage.getItem("editing-session-history") || "[]"
-  );
+  try {
+    return JSON.parse(
+      localStorage.getItem("editing-session-history") || "[]"
+    ) as EditingSessionHistory[];
+  } catch {
+    return [];
+  }
 }
 
 export function saveSessionHistory(
