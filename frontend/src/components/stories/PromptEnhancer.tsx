@@ -32,7 +32,13 @@ const PromptEnhancer = ({ prompt, onPromptChange }: PromptEnhancerProps) => {
 
     try {
       const result = await enhancePrompt({ prompt: prompt.trim(), provider: selectedModel }).unwrap();
-      onPromptChange(result.data.enhancedPrompt);
+
+      const enhancedPrompt = result?.data?.enhancedPrompt;
+      if (!enhancedPrompt || typeof enhancedPrompt !== "string") {
+        throw new Error("Invalid response: missing enhancedPrompt field");
+      }
+
+      onPromptChange(enhancedPrompt);
       setIsEnhanced(true);
       toast.success("Prompt enhanced!");
     } catch (error) {
