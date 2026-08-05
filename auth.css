@@ -284,12 +284,15 @@ body::after {
     pointer-events: none;
 }
 
+input,
 input[type="text"],
 input[type="email"],
-input[type="password"] {
-    width: 100%;
-    min-width: 0;
-    max-width: 100%;
+input[type="password"],
+.ds-input,
+.auth-field {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
     height: var(--ds-input-height);
     border-radius: 14px;
     border: 1px solid rgba(255, 255, 255, 0.08);
@@ -297,7 +300,7 @@ input[type="password"] {
     color: var(--text);
     font-size: 14px;
     padding: 0 46px 0 46px; /* Symmetrical padding prevents text from overlapping icons */
-    box-sizing: border-box;
+    box-sizing: border-box !important;
     transition: var(--transition);
 }
 
@@ -769,10 +772,14 @@ input:-webkit-autofill:focus {
 }
 
 /* Fix for inputs breaking out of the container */
-.auth-container input {
-    width: 100%;
-    box-sizing: border-box;
+.auth-container input,
+.auth-form-card input,
+.auth-form-card .ds-input-group,
+.auth-form-card .input-icon-wrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
     margin-left: 0;
     margin-right: 0;
-
 }
