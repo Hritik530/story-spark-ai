@@ -5,7 +5,8 @@ export const getShortenedText = (
   wordLimit: number = 35
 ): string => {
   if (!content) return "";
-  const words: string[] = content.split(" ");
+  // Use /\s+/ to match getWordCount behaviour — handles tabs, newlines, multiple spaces
+  const words: string[] = content.trim().split(/\s+/);
   return words.length > wordLimit
     ? words.slice(0, wordLimit).join(" ") + "..."
     : content;
