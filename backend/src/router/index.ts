@@ -32,8 +32,11 @@ import { StoryConsistencyRouter } from "../app/modules/story_consistency/story_c
 import { StoryRatingRouter } from "../app/modules/story_rating/story_rating.router";
 import { UsageRouter } from "../app/modules/ai_model/usage.router";
 import { CollectionRouter } from "../app/modules/collection/collection.router";
+import { ChapterIllustrationRouter } from "../app/modules/chapter_illustration/chapter_illustration.router";
 import { StoryBranchingRouter } from "../app/modules/story_branching/story_branching.router";
+
 const router = express.Router();
+
 
 const modules = [
   {
@@ -172,10 +175,15 @@ const modules = [
     router: CollectionRouter,
   },
   {
+    path: "/chapter-illustrations",
+    router: ChapterIllustrationRouter,
+  },
+  {
     path: "/story-branches",
     router: StoryBranchingRouter,
   },
 ];
+
 
 modules.forEach((route) => router.use(route.path, route.router));
 
