@@ -408,9 +408,6 @@ export const useSpeechSynthesis = (
       selectedLanguage,
       stop,
     ],
-
-    [isSupported, rateState, pitchState, volumeState, selectedVoiceId, selectedLanguage, stop, resolveBrowserVoice],
-
   );
 
   const pause = useCallback(() => {
