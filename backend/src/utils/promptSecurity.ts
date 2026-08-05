@@ -9,12 +9,17 @@
  */
 import { assertContentSafe } from "./contentModeration";
 
+
 export class SecurityError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "SecurityError";
   }
 }
+
+// Added strict character limit to prevent DoS/ReDoS
+const MAX_PROMPT_LENGTH = 10000; 
+
 
 const FORBIDDEN_PATTERNS: RegExp[] = [
   // Direct instruction override attempts
@@ -82,6 +87,11 @@ const normalizeText = (input: string): string => {
 export const validateAndFormatPrompt = (userPrompt: string): string => {
   if (!userPrompt || typeof userPrompt !== "string") {
     throw new SecurityError("Security Violation: Invalid prompt input.");
+  }
+
+  // Length check BEFORE expensive normalizations and regex matching
+  if (userPrompt.length > MAX_PROMPT_LENGTH) {
+    throw new Error(`Security Violation: Prompt exceeds maximum length of ${MAX_PROMPT_LENGTH} characters.`);
   }
 
   const canonicalPrompt = normalizeText(userPrompt);
