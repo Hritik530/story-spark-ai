@@ -13,6 +13,7 @@ export const scrubPII = (text: string): string => {
 
   let scrubbed = text;
 
+  // Idempotency check removed due to security bypass vulnerability (Issue #4461)
 
 
 
@@ -125,6 +126,19 @@ export const piiScrubberMiddleware = (req: Request, res: Response, next: NextFun
     // Also scrub chat 'message'
     if (req.body && req.body.message && typeof req.body.message === "string") {
       req.body.message = scrubPII(req.body.message);
+    }
+
+    // Also scrub chat 'messages' array for POST /chat
+    if (req.body && Array.isArray(req.body.messages)) {
+      req.body.messages = req.body.messages.map((msg: any) => {
+        if (msg && typeof msg.content === "string") {
+          return {
+            ...msg,
+            content: scrubPII(msg.content),
+          };
+        }
+        return msg;
+      });
     }
 
     next();

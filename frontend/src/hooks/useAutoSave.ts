@@ -1,4 +1,5 @@
 import { useEffect, useRef, useCallback, useState } from "react";
+import api from "../services/api";
 
 const DRAFT_KEY_PREFIX = "story_draft_";
 const AUTOSAVE_INTERVAL_MS = 30000;
@@ -12,18 +13,51 @@ interface DraftData {
   savedAt: string;
 }
 
-export const offlineQueue: Array<{ content: string; timestamp: number }> = [];
+interface QueuedSave {
+  draftId: string;
+  title: string;
+  content: string;
+  timestamp: number;
+}
+
+export const offlineQueue: QueuedSave[] = [];
 let globalIsOnline = typeof navigator !== "undefined" ? navigator.onLine : true;
 
-export async function flushOfflineQueue(queue: Array<{ content: string; timestamp: number }>) {
-  for (const item of queue) {
-    await fetch("/api/stories/save", {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ content: item.content }),
-    });
+let flushInProgress: Promise<void> | null = null;
+
+async function saveDraftToServer(item: Pick<QueuedSave, "draftId" | "title" | "content">) {
+  await api.patch(`/story/${item.draftId}/save`, {
+    title: item.title,
+    content: item.content,
+  });
+}
+
+async function flushOfflineQueueOnce(
+  onStart: () => void,
+  onSuccess: () => void,
+  onError: (error: unknown) => void
+): Promise<void> {
+  if (flushInProgress) return flushInProgress;
+  if (offlineQueue.length === 0) return;
+
+  onStart();
+  flushInProgress = (async () => {
+    const itemsToFlush = offlineQueue.splice(0, offlineQueue.length);
+    try {
+      for (const item of itemsToFlush) {
+        await saveDraftToServer(item);
+      }
+      onSuccess();
+    } catch (error) {
+      offlineQueue.unshift(...itemsToFlush);
+      onError(error);
+    }
+  })();
+
+  try {
+    await flushInProgress;
+  } finally {
+    flushInProgress = null;
   }
 }
 
@@ -43,25 +77,14 @@ export function useAutoSave(draftId: string, title: string, content: string) {
 
       const currentOnline = typeof navigator !== "undefined" ? navigator.onLine : true;
       if (!currentOnline) {
-        offlineQueue.push({ content, timestamp: Date.now() });
+        offlineQueue.push({ draftId, title, content, timestamp: Date.now() });
         setPendingCount(offlineQueue.length);
         setLastSaved(new Date());
         setSaveStatus("saved");
         return;
       }
 
-      const response = await fetch("/api/stories/save", {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ content }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to save to server");
-      }
-
+      await saveDraftToServer({ draftId, title, content });
       setLastSaved(new Date());
       setSaveStatus("saved");
     } catch {
@@ -70,22 +93,22 @@ export function useAutoSave(draftId: string, title: string, content: string) {
   }, [draftId, title, content]);
 
   useEffect(() => {
-    const handleOnline = async () => {
+    const handleOnline = () => {
       setIsOnline(true);
       globalIsOnline = true;
-      if (offlineQueue.length > 0) {
-        try {
-          setSaveStatus("saving");
-          await flushOfflineQueue(offlineQueue);
-          offlineQueue.length = 0;
-          setPendingCount(0);
+      flushOfflineQueueOnce(
+        () => setSaveStatus("saving"),
+        () => {
+          setPendingCount(offlineQueue.length);
           setLastSaved(new Date());
           setSaveStatus("saved");
-        } catch (error) {
+        },
+        (error) => {
+          setPendingCount(offlineQueue.length);
           setSaveStatus("error");
           console.error("Failed to flush offline queue:", error);
         }
-      }
+      );
     };
 
     const handleOffline = () => {

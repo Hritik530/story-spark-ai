@@ -3,7 +3,7 @@
    File: auth.js
    ═══════════════════════════════════════════════ */
 
-let currentMode = 'signin';
+const GOOGLE_CLIENT_ID = (typeof window !== 'undefined' && window.VITE_GOOGLE_CLIENT_ID) ? window.VITE_GOOGLE_CLIENT_ID : '';
 
 // ── Google Identity Services (GIS) Client ID ──
 const GOOGLE_CLIENT_ID = (typeof window !== 'undefined' && window.VITE_GOOGLE_CLIENT_ID) ? window.VITE_GOOGLE_CLIENT_ID : 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
@@ -787,11 +787,16 @@ function initGoogleAuth() {
         return;
     }
 
+    if (GOOGLE_CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com') {
+        console.warn('Google Sign-In is not configured (VITE_GOOGLE_CLIENT_ID missing) — skipping initialization.');
+        return;
+    }
+
     google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
         callback: handleGoogleCredentialResponse,
-auto_select: true,
-      cancel_on_tap_outside: true,
+        auto_select: true,
+        cancel_on_tap_outside: true,
     });
 }
 
@@ -807,35 +812,21 @@ function decodeJwt(token) {
 
         if (!decoded || typeof decoded !== 'object') return null;
 
-        // Required userId validation
-        if (typeof decoded.userId !== 'string' || decoded.userId.trim() === '') return null;
-
-        // Required email validation with format regex
-        if (typeof decoded.email !== 'string' || decoded.email.trim() === '') return null;
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (!emailRegex.test(decoded.email)) return null;
-
-        // Required role validation
-        if (typeof decoded.role !== 'string' || decoded.role.trim() === '') return null;
-        const validRoles = ['user', 'admin', 'guest'];
-        if (!validRoles.includes(decoded.role)) return null;
-
-        // Required subscriptionType validation
-        if (typeof decoded.subscriptionType !== 'string' || decoded.subscriptionType.trim() === '') return null;
-        const validSubscriptions = ['free', 'premium'];
-        if (!validSubscriptions.includes(decoded.subscriptionType)) return null;
-
         // Required exp (expiration) validation
         if (typeof decoded.exp !== 'number' || decoded.exp <= Math.floor(Date.now() / 1000)) return null;
 
         // Required iat validation
         if (typeof decoded.iat !== 'number') return null;
 
+        // Optional email validation if present
+        if (decoded.email !== undefined) {
+          if (typeof decoded.email !== 'string' || decoded.email.trim() === '') return null;
+          const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+          if (!emailRegex.test(decoded.email)) return null;
+        }
+
         // Optional name validation
         if (decoded.name !== undefined && typeof decoded.name !== 'string') return null;
-
-        // Optional postsCount validation
-        if (decoded.postsCount !== undefined && typeof decoded.postsCount !== 'number') return null;
 
         return decoded;
     } catch (e) {

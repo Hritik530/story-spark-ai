@@ -45,8 +45,8 @@ const decodeCursor = (cursor?: string): ICursorPayload | null => {
       return null;
     }
     return parsed as ICursorPayload;
-  } catch {
-    return null;
+  } catch (error) {
+    console.error('[PostService] Failed to add XP:', error);
   }
 };
 
@@ -94,11 +94,9 @@ const getCursorCondition = (
 };
 
 const createPost = async (payload: IPostPayload, token: ITokenPayload) => {
-  const { email, role } = token;
-  const user = await User.findOne({
-    email: email,
-    role: role,
-  });
+  const { _id } = token;
+
+  const user = await User.findById(_id).select("_id role postsCount");
   if (!user) {
     throw new ApiError(httpStatus.BAD_REQUEST, "User not found!");
   }
@@ -683,7 +681,7 @@ const forkStory = async (postId: string, token: ITokenPayload) => {
 
 const getGenres = async (): Promise<string[]> => {
   const genres = await Post.distinct("tag", { isDeleted: { $ne: true }, tag: { $nin: [null, ""] } });
-  return genres.sort();
+  return genres.sort((a, b) => a - b);
 };
 
 const bulkDeletePosts = async (ids: string[], token: ITokenPayload) => {
