@@ -1,7 +1,8 @@
 import { NextFunction, Request, Response } from 'express';
+import httpStatus from 'http-status';
+import { Character } from '../models/Character.model';
 import { Character } from '../Character.model';
 import ApiError from '../errors/api_error';
-import httpStatus from 'http-status';
 import catchAsync from '../shared/catch_async';
 
 export const createCharacter = catchAsync(async (req: Request, res: Response, next: NextFunction) => {
