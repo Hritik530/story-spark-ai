@@ -10,10 +10,9 @@ import { Secret } from "jsonwebtoken";
 import logger from "./utils/logger.util";
 import { setNotificationSocket } from "./socket/notification.socket";
 import { setupCollabSocket } from "./socket/collab.socket";
-import { setupCollabSocket } from "./socket/collab.socket";
-import { setNotificationSocket } from "./socket/notification.socket";
 import { YjsGateway } from "./app/modules/collab/yjs.gateway";
 import { socketRateLimiter } from "./socket/socket-rate-limiter";
+import { startOrderReconciliationJob } from "./jobs/reconcilePendingOrders.job";
 
 // Override DNS resolvers only when explicitly configured, default to the platform environment
 if (config.dns_servers?.length) {
@@ -68,7 +67,7 @@ async function reconnectMongo() {
 
 async function connectDB() {
   if (mongoose.connection.readyState === 1) return;
-  // config.database_url is guaranteed non-empty by config/index.ts – if it throws at
+  // config.database_url is guaranteed non-empty by config/index.ts – it throws at
   // module load time if DATABASE_URL is missing, so no runtime guard is needed here
   if (!mongoose.connection.listeners('error').length) {
     mongoose.connection.on('error', (err) => {
@@ -93,6 +92,8 @@ async function connectDB() {
 }
 
 async function main() {
+  let httpServer: http.Server | undefined;
+
   // ==========================================
   // CENTRALIZED GRACEFUL SHUTDOWN HANDLERS FOR #2784
   // ==========================================
@@ -102,18 +103,15 @@ async function main() {
 
     try {
       if (httpServer) {
-        await new Promise<void>((resolve) => {
-          httpServer.close(() => resolve());
+        await new Promise<void>((resolve, reject) => {
+          httpServer!.close((err) => {
+            if (err) reject(err);
+            else resolve();
+          });
         });
         logger.info('🔌 HTTP server closed.');
       }
       if (mongoose && mongoose.connection && mongoose.connection.readyState !== 0) {
-        await new Promise<void>((resolve, reject) => {
-        httpServer.close((err) => {
-        if (err) reject(err);
-        else resolve();
-  });
-});
         await mongoose.connection.close();
         logger.info('🔌 MongoDB connection safely closed.');
       }
@@ -126,19 +124,12 @@ async function main() {
 
   // Catch unhandled Promise failures across asynchronous operations
   process.on('unhandledRejection', (reason: unknown) => {
-    handleGracefulShutdown('Unhandled Rejection', reason);
+    void handleGracefulShutdown('Unhandled Rejection', reason);
   });
 
   // Intercept unexpected application crashes before they tear down the system
-  process.on("unhandledRejection", (reason) => {
-  void handleGracefulShutdown("Unhandled Rejection", reason);
-  });
-
-  process.on("uncaughtException", (error) => {
-  void handleGracefulShutdown("Uncaught Exception", error);
-  });
   process.on('uncaughtException', (error: Error) => {
-    handleGracefulShutdown('Uncaught Exception', error);
+    void handleGracefulShutdown('Uncaught Exception', error);
   });
 
   try {
@@ -147,80 +138,30 @@ async function main() {
     logger.error("Critical error during application startup:", startupError);
     process.exit(1);
   }
+
   try {
-    const httpServer = http.createServer(app);
-  const defaultCorsOrigins = 
-    process.env.NODE_ENV === "development"
-      ? ["http://localhost:4001", "http://localhost:4002"]
-      : [];
-  // Recovers orders left in "paid_pending_entitlement" by a crash between
-  // the Order write and the User write in verifyPayment. See issue #4876.
-  startOrderReconciliationJob();
+    httpServer = http.createServer(app);
 
-  const httpServer = http.createServer(app);
-  // defaultCorsOrigins is imported from app.ts for consistency
+    // Recovers orders left in "paid_pending_entitlement" by a crash between
+    // the Order write and the User write in verifyPayment. See issue #4876.
+    startOrderReconciliationJob();
 
-  const socketCorsOrigins =
-    config.cors_origins && config.cors_origins.length > 0
-      ? config.cors_origins
-      : defaultCorsOrigins;
-  // Instantiate Socket.IO on top of the HTTP server (previously imported
-  // but never constructed — realtime features were silently dead).
-  const io = new Server(httpServer, {
-    cors: {
-      origin: socketCorsOrigins,
-      credentials: true,
-    },
-  });
+    const socketCorsOrigins =
+      config.cors_origins && config.cors_origins.length > 0
+        ? config.cors_origins
+        : defaultCorsOrigins;
 
-
-  // Initialize Socket.IO server with rate limiting
-  const io = new Server(httpServer, {
-    cors: {
-      origin: socketCorsOrigins,
-      credentials: true,
-      methods: ["GET", "POST"],
-    },
-  });
-
-  // Apply rate limiting to all Socket.IO connections
-  io.use(socketRateLimiter);
-
-  // Setup Socket.IO namespaces
-  setupCollabSocket(io);
-  setNotificationSocket(io);
-  new YjsGateway(io);
-
-  const io = new Server(httpServer, {
-    cors: {
-      origin: socketCorsOrigins,
-      methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-      credentials: true,
-    },
-  });
-
-  setNotificationSocket(io);
-  setupCollabSocket(io);
-
-
-  logger.info("🔌 Socket.IO server initialized with rate limiting");
-
+    // Single Socket.IO instance: full CORS methods + credentials, rate
+    // limiting, JWT auth handshake, and per-user room joining.
     const io = new Server(httpServer, {
-        cors: {
-          origin: socketCorsOrigins,
-          credentials: true,
-        },
+      cors: {
+        origin: socketCorsOrigins,
+        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        credentials: true,
+      },
     });
 
-    const [{ setNotificationSocket }, { setupCollabSocket }, { YjsGateway }] = await Promise.all([
-      import("./socket/notification.socket"),
-      import("./socket/collab.socket"),
-      import("./app/modules/collab/yjs.gateway"),
-    ]);
-
-    setNotificationSocket(io);
-    setupCollabSocket(io);
-    new YjsGateway(io);
+    io.use(socketRateLimiter);
 
     io.use((socket, next) => {
       try {
@@ -251,6 +192,12 @@ async function main() {
         socket.join(`user:${userId}`);
       }
     });
+
+    setNotificationSocket(io);
+    setupCollabSocket(io);
+    new YjsGateway(io);
+
+    logger.info("🔌 Socket.IO server initialized with rate limiting");
 
     httpServer.listen(config.port, () => {
       logger.info(`Story-Spark-AI app listening on port ${config.port}`);
