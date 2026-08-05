@@ -13,10 +13,6 @@ export const scrubPII = (text: string): string => {
 
   let scrubbed = text;
 
-  // Idempotency check removed due to security bypass vulnerability (Issue #4461)
-
-
-
   // 1. Emails
 
   const emailRegex = /[a-zA-Z0-9._%+\-']+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
@@ -91,6 +87,14 @@ export const scrubPII = (text: string): string => {
   const addressRegex =
     /\b\d{1,5}\s+[A-Za-z0-9][A-Za-z0-9\s.'-]{1,60}\s+(?:Street|St|Avenue|Ave|Boulevard|Blvd|Road|Rd|Drive|Dr|Lane|Ln|Court|Ct|Place|Pl|Parkway|Pkwy)(?:\s+(?:Apt|Apartment|Suite|Ste|Unit|Room)\s+[A-Za-z0-9#-]+)?(?:\s*,\s*[A-Za-z\s]+)?(?:\s*,\s*[A-Z]{2})?(?:\s+\d{5})?\b/gi;
   scrubbed = scrubbed.replace(addressRegex, "[REDACTED_ADDRESS]");
+
+
+  // 6. NLP for Person Names using compromise
+  const containsAnyRedactionToken =
+    /\[REDACTED_(?:EMAIL|PHONE|NAME|SSN|CARD|ADDRESS)\]/i.test(scrubbed);
+  if (!containsAnyRedactionToken) {
+    const doc = compromise(scrubbed);
+    const people = doc.people().out("array");
 
   // 7. NLP for Person Names using compromise
   const doc = compromise(scrubbed);

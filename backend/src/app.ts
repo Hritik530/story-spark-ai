@@ -19,6 +19,7 @@ import globalRateLimiter from "./app/middleware/global.rate-limiter";
 import { sanitizeAllMiddleware } from "./app/middleware/sanitize.middleware";
 import ApiError from "./errors/api_error";
 
+
 const app: Application = express();
 // Only trust the proxy in production, where we're actually behind a real
 // reverse proxy. In dev there's no real proxy in front of us, so trusting
@@ -79,7 +80,11 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser() as unknown as RequestHandler);
 app.use(sanitizeAllMiddleware);
 
-// Legacy Route Rewrite Rules
+
+// Global XSS sanitization for all incoming request bodies and query parameters
+app.use(sanitizeAllMiddleware);
+
+
 app.use((req, res, next) => {
   if (
     req.method === "GET" &&
