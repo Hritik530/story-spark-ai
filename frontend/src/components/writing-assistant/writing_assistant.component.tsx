@@ -65,6 +65,17 @@ const demoLines = [
   "He remembered the fire, but not how it started.",
 ];
 
+// Keyframe injected once at module level — not inside render
+const blinkStyleSheet = typeof document !== "undefined" && (() => {
+  const existing = document.getElementById("blink-keyframe");
+  if (!existing) {
+    const s = document.createElement("style");
+    s.id = "blink-keyframe";
+    s.textContent = "@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }";
+    document.head.appendChild(s);
+  }
+})();
+
 export default function AIWritingAssistant() {
   const [typedText, setTypedText] = useState("");
   const [lineIdx, setLineIdx] = useState(0);
@@ -207,7 +218,6 @@ export default function AIWritingAssistant() {
               animation: "blink 1s step-end infinite",
             }}
           />
-          <style>{`@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }`}</style>
         </div>
 
         <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", justifyContent: "center" }}>
