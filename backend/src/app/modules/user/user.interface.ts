@@ -24,6 +24,7 @@ export interface IUser {
   name: string;
   email: string;
   password?: string;
+  passwordChangedAt?: Date;
   role: string;
   status: string;
   subscriptionType: SubscriptionType;
@@ -41,6 +42,9 @@ export interface IUser {
       twitter: string;
       linkedin: string;
       instagram: string;
+      github?: string;
+      discord?: string;
+
       github: string;
       discord: string;
     };
@@ -50,6 +54,9 @@ export interface IUser {
   posts: Types.ObjectId[];
   isApplyForWriter: boolean;
   tokenVersion?: number;
+  pendingEmail?: string;
+  pendingEmailToken?: string;
+  pendingEmailTokenExpires?: Date;
   gamification: {
     xp: number;
     level: number;
