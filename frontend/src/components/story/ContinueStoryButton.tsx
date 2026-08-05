@@ -80,8 +80,13 @@ const ContinueStoryButton = () => {
       </label>
       <button
         onClick={handleContinue}
-        disabled={loading}
-        className="w-full sm:w-auto bg-purple-600 hover:bg-purple-700 transition-all px-6 py-3 rounded-xl text-white font-semibold"
+        disabled={loading || !currentStory}
+        title={!currentStory ? "Generate a story first before continuing" : undefined}
+        className={`w-full sm:w-auto transition-all px-6 py-3 rounded-xl text-white font-semibold
+          ${loading || !currentStory
+            ? "bg-purple-600/40 cursor-not-allowed opacity-50"
+            : "bg-purple-600 hover:bg-purple-700 cursor-pointer"
+          }`}
       >
         {loading ? "Generating Chapter..." : buttonText}
       </button>
