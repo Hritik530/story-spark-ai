@@ -161,9 +161,9 @@ body {
     overflow: hidden;
 }
 
-input[type="text"],
-input[type="email"],
-input[type="password"] {
+.auth-form-card input[type="text"],
+.auth-form-card input[type="email"],
+.auth-form-card input[type="password"] {
     width: 100%;
     max-width: 100%;
     box-sizing: border-box;
@@ -231,11 +231,14 @@ input[type="password"] {
 }
 
 /* ── Design System: Form Input Custom Fields ── */
-input[type="text"],
-input[type="email"],
-input[type="password"] {
-    width: 100%;
-    max-width: 100%;
+.auth-form-card input,
+.auth-form-card input[type="text"],
+.auth-form-card input[type="email"],
+.auth-form-card input[type="password"],
+.auth-form-card .ds-input {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
     height: var(--ds-input-height);
     font-size: 15px;
     line-height: calc(var(--ds-input-height) - 2px);
@@ -245,7 +248,7 @@ input[type="password"] {
     color: #e1e2ea;
     border: 1px solid rgba(255, 255, 255, 0.08);
     display: block;
-    box-sizing: border-box;
+    box-sizing: border-box !important;
     transition: border-color 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease;
 }
 
@@ -595,12 +598,15 @@ button:disabled {
 /* Guarantee every input inside the auth card is fully contained */
 .auth-form-card .ds-input-group,
 .auth-form-card .input-icon-wrapper,
+.auth-form-card input,
 .auth-form-card input[type="text"],
 .auth-form-card input[type="email"],
-.auth-form-card input[type="password"] {
-    width: 100%;
-    max-width: 100%;
-    box-sizing: border-box;
+.auth-form-card input[type="password"],
+.auth-form-card .ds-input {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
 }
 
 /* Ensure submit and Google buttons fill the card width */
