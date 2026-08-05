@@ -1,4 +1,3 @@
-
 /**
  * Lightweight frontend logging wrapper.
  *
@@ -26,7 +25,6 @@ const logger = {
     console.error(...args);
   },
 };
-
 
 export default logger;
 
