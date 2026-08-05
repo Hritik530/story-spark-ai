@@ -6,41 +6,57 @@ interface StoryGeneratorProps {
   onStoryGenerated?: (stories: any[]) => void;
 }
 
+const MIN_PROMPT_LENGTH = 10;
+const MAX_PROMPT_LENGTH = 1000;
+
 export const StoryGenerator: React.FC<StoryGeneratorProps> = ({ onStoryGenerated }) => {
   const [prompt, setPrompt] = useState('');
   const [variationCount, setVariationCount] = useState(3);
   const [isLoading, setIsLoading] = useState(false);
   const [stories, setStories] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
+
+  // Derived values used both in JSX and inside handleGenerate
+  const trimmedPrompt = prompt.trim();
+  const promptLength = trimmedPrompt.length;
+  const isPromptInvalid =
+    promptLength < MIN_PROMPT_LENGTH || promptLength > MAX_PROMPT_LENGTH;
+
   const abortControllerRef = useRef<AbortController | null>(null);
-
-  const handleCancel = () => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
-    setIsLoading(false);
-    setError('Story generation was cancelled.');
-  };
-
   const handleGenerate = async () => {
-    if (!prompt.trim()) {
+
+    // trimmedPrompt and promptLength are already derived at component scope above
+    if (!trimmedPrompt) {
       setError('Please enter a story prompt.');
       return;
     }
+
+    if (promptLength < MIN_PROMPT_LENGTH) {
+      setError(`Story prompt must be at least ${MIN_PROMPT_LENGTH} characters long.`);
+      return;
+    }
+
+    if (promptLength > MAX_PROMPT_LENGTH) {
+      setError(`Story prompt must be no more than ${MAX_PROMPT_LENGTH} characters long.`);
+      return;
+    }
+
     setError(null);
     setIsLoading(true);
 
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
+    abortControllerRef.current = new AbortController();
+    const timeoutId = setTimeout(() => {
+      abortControllerRef.current?.abort();
+      }, 15000);                                             //timeout after 15 seconds
 
     try {
       const response = await api.post('/ai/generate', {
-        prompt: prompt.trim(),
+        prompt: trimmedPrompt,
         variations: variationCount,
       }, {
-        signal: controller.signal,
+        signal: abortControllerRef.current.signal,
       });
+      clearTimeout(timeoutId);
 
       if (response?.data?.variations) {
         setStories(response.data.variations);
@@ -51,12 +67,10 @@ export const StoryGenerator: React.FC<StoryGeneratorProps> = ({ onStoryGenerated
         throw new Error('No variations received from AI service');
       }
     } catch (error: any) {
-      if (error.name === 'CanceledError' || error.name === 'AbortError' || error.code === 'ERR_CANCELED') {
-        setError('Story generation was cancelled.');
-        return;
-      }
       console.error('AI Generation Error:', error);
+
       let errorMessage = 'Failed to generate stories. Please try again.';
+
       if (error.response?.status === 429) {
         errorMessage = 'The AI service is currently busy. Please wait a moment and try again.';
       } else if (error.response?.status === 504) {
@@ -64,13 +78,15 @@ export const StoryGenerator: React.FC<StoryGeneratorProps> = ({ onStoryGenerated
       } else if (error.response?.status === 500) {
         errorMessage = 'Server error. Please try again later.';
       } else if (error.code === 'ECONNABORTED' || error.message?.includes('timeout')) {
-        errorMessage = 'Request timed out after 30 seconds. Please try again.';
+        errorMessage = 'Request timed out. Please try again.';
+      } else if (error.name === 'AbortError' || error.code === 'ERR_CANCELED'){
+        errorMessage = 'Request timed out. Please try again later.';
       } else if (!error.response) {
         errorMessage = 'Network error. Please check your connection.';
       }
+
       setError(errorMessage);
     } finally {
-      abortControllerRef.current = null;
       setIsLoading(false);
     }
   };
@@ -91,6 +107,15 @@ export const StoryGenerator: React.FC<StoryGeneratorProps> = ({ onStoryGenerated
           >
             <i className="fas fa-times" />
           </button>
+
+          {isLoading && (
+          <button
+            onClick = {() => abortControllerRef.current?.abort()}
+            className = "w-full px-6 py-3 mt-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+          >
+            Cancel
+          </button> 
+        )}
         </div>
       )}
 
@@ -106,8 +131,32 @@ export const StoryGenerator: React.FC<StoryGeneratorProps> = ({ onStoryGenerated
           placeholder="Enter your story prompt..."
           disabled={isLoading}
           rows={4}
+          minLength={MIN_PROMPT_LENGTH}
+          maxLength={MAX_PROMPT_LENGTH}
           className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 disabled:opacity-50"
         />
+
+        <div className="mt-1 flex justify-between text-sm">
+          <span
+            className={
+              promptLength > 0 && promptLength < MIN_PROMPT_LENGTH
+                ? 'text-red-600'
+                : 'text-gray-500'
+            }
+          >
+            Minimum {MIN_PROMPT_LENGTH} characters required
+          </span>
+
+          <span
+            className={
+              promptLength > MAX_PROMPT_LENGTH
+                ? 'text-red-600'
+                : 'text-gray-500'
+            }
+          >
+            {promptLength}/{MAX_PROMPT_LENGTH}
+          </span>
+        </div>
       </div>
 
       {/* Variation Count */}
@@ -127,37 +176,24 @@ export const StoryGenerator: React.FC<StoryGeneratorProps> = ({ onStoryGenerated
         />
       </div>
 
-      {/* Generate / Cancel Buttons */}
-      <div className="flex gap-3">
-        <button
-          onClick={handleGenerate}
-          disabled={isLoading || !prompt.trim()}
-          className="flex-1 px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
-        >
-          {isLoading ? (
-            <>
-              <i className="fas fa-spinner fa-spin" />
-              Generating Stories...
-            </>
-          ) : (
-            <>
-              <i className="fas fa-wand-magic-sparkles" />
-              Generate Stories
-            </>
-          )}
-        </button>
-
-        {isLoading && (
-          <button
-            onClick={handleCancel}
-            className="px-6 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-all flex items-center justify-center gap-2"
-            aria-label="Cancel story generation"
-          >
-            <i className="fas fa-times" />
-            Cancel
-          </button>
+      {/* Generate Button */}
+      <button
+        onClick={handleGenerate}
+        disabled={isLoading || isPromptInvalid}
+        className="w-full px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-2"
+      >
+        {isLoading ? (
+          <>
+            <i className="fas fa-spinner fa-spin" />
+            Generating Stories...
+          </>
+        ) : (
+          <>
+            <i className="fas fa-wand-magic-sparkles" />
+            Generate Stories
+          </>
         )}
-      </div>
+      </button>
 
       {/* Generated Stories */}
       {stories.length > 0 && (
