@@ -40,6 +40,7 @@ const DiffViewer: React.FC<DiffViewerProps> = ({ version1, version2, onBack }) =
     return diffWords(version1.content, version2.content);
   }, [version1.content, version2.content]);
 
+
   const stats = useMemo(() => {
     let added = 0;
     let removed = 0;
