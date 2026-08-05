@@ -369,8 +369,21 @@ export default function AIWritingAssistant() {
       <footer style={{ padding: "2rem 2.5rem", borderTop: "1px solid rgba(255,255,255,0.05)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem", fontSize: "0.78rem", color: "#5A577A" }}>
         <span>© 2026 StorySpark<span style={{ color: "#7C5DFA" }}>AI</span> · Open-source under MIT</span>
         <div style={{ display: "flex", gap: "1.8rem" }}>
-          {["GitHub", "Contributing", "Code of Conduct", "Docs"].map((l) => (
-            <a key={l} href="#" style={{ color: "#5A577A", textDecoration: "none" }}>{l}</a>
+          {[
+            { label: "GitHub", href: "https://github.com/ronisarkarexe/story-spark-ai" },
+            { label: "Contributing", href: "https://github.com/ronisarkarexe/story-spark-ai/blob/main/CONTRIBUTING.md" },
+            { label: "Code of Conduct", href: "https://github.com/ronisarkarexe/story-spark-ai/blob/main/CODE_OF_CONDUCT.md" },
+            { label: "Docs", href: "https://github.com/ronisarkarexe/story-spark-ai/wiki" },
+          ].map((l) => (
+            <a
+              key={l.label}
+              href={l.href}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: "#5A577A", textDecoration: "none" }}
+            >
+              {l.label}
+            </a>
           ))}
         </div>
       </footer>
