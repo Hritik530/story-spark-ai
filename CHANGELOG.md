@@ -34,6 +34,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Real Flesch-Kincaid-based readability, diversity, and repeated-word analysis in the Vocabulary Analyzer (previously hardcoded)
 
 ### Changed
+- Improved CONTRIBUTING.md with comprehensive local setup guide, monorepo structure explanation, environment variable guide, branch naming conventions, Conventional Commits format, and PR checklist cross-reference (#4258)
 - Updated empty stories state component
 - Improved trending topics layout with responsive grid
 - Enhanced dark mode support across components

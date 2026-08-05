@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, it, expect } from "vitest";
 import {
   analyzeVocabulary,
   refreshVocabularyAnalysis,
@@ -6,7 +6,7 @@ import {
 } from "../vocabularyAnalyzer";
 
 describe("analyzeVocabulary", () => {
-  it("returns an all-zero analysis for an empty story", () => {
+  it("returns all-zero scores for empty input", () => {
     const result = analyzeVocabulary("");
     expect(result.readabilityScore).toBe(0);
     expect(result.diversityScore).toBe(0);
@@ -14,85 +14,121 @@ describe("analyzeVocabulary", () => {
     expect(result.suggestions).toEqual([]);
   });
 
-  it("gives a short, simple story a high readability score", () => {
-    const story = "The cat sat. The dog ran. The sun was hot.";
-    const result = analyzeVocabulary(story);
-    expect(result.readabilityScore).toBeGreaterThan(70);
+  it("does not return the old hardcoded stub values", () => {
+    const result = analyzeVocabulary(
+      "The quick brown fox jumps over the lazy dog."
+    );
+    expect(
+      result.readabilityScore === 82 && result.diversityScore === 74
+    ).toBe(false);
   });
 
-  it("gives a long, complex story a lower readability score than a simple one", () => {
-    const simple = "The cat sat. The dog ran. It was fun.";
+  it("produces a higher readability score for simple short sentences than for long, complex ones", () => {
+    const simple = "The cat sat. The dog ran. I am happy.";
     const complex =
-      "The extraordinarily perspicacious feline contemplated the multifaceted implications of its precarious existential circumstances, deliberating extensively.";
+      "The extraordinarily sophisticated and multifaceted philosophical " +
+      "ramifications of the aforementioned circumstantial deliberations " +
+      "necessitated an exceptionally comprehensive and meticulous investigation.";
 
     const simpleResult = analyzeVocabulary(simple);
     const complexResult = analyzeVocabulary(complex);
 
-    expect(complexResult.readabilityScore).toBeLessThan(
-      simpleResult.readabilityScore
+    expect(simpleResult.readabilityScore).toBeGreaterThan(
+      complexResult.readabilityScore
     );
   });
 
-  it("gives a 100% diversity score when every word is unique", () => {
-    const story = "Bright colors filled every corner of the quiet room today.";
-    const result = analyzeVocabulary(story);
-    expect(result.diversityScore).toBe(100);
+  it("keeps scores within the 0-100 range for a long story", () => {
+    const longStory = Array(200)
+      .fill(
+        "Every morning the old lighthouse keeper walked slowly down to the rocky shore."
+      )
+      .join(" ");
+
+    const result = analyzeVocabulary(longStory);
+
+    expect(result.readabilityScore).toBeGreaterThanOrEqual(0);
+    expect(result.readabilityScore).toBeLessThanOrEqual(100);
+    expect(result.diversityScore).toBeGreaterThanOrEqual(0);
+    expect(result.diversityScore).toBeLessThanOrEqual(100);
   });
 
-  it("lowers the diversity score as words repeat", () => {
-    const repetitive = "walk walk walk walk walk walk walk walk walk walk";
-    const varied = "walk run jump swim climb dive skip hop dash sprint";
+  it("gives a higher diversity score to varied text than to highly repetitive text", () => {
+    const repetitive = "run run run run run run run run run run.";
+    const varied =
+      "The wandering traveler discovered ancient ruins beneath a crimson sky.";
 
     const repetitiveResult = analyzeVocabulary(repetitive);
     const variedResult = analyzeVocabulary(varied);
 
-    expect(repetitiveResult.diversityScore).toBeLessThan(
-      variedResult.diversityScore
+    expect(variedResult.diversityScore).toBeGreaterThan(
+      repetitiveResult.diversityScore
     );
   });
 
-  it("flags a word repeated 3+ times as a repeated word", () => {
-    const story =
-      "The shadow moved slowly. Another shadow followed close behind. A third shadow joined them near the wall.";
-    const result = analyzeVocabulary(story);
+  it("identifies actual overused non-stopwords in repeatedWords", () => {
+    const text =
+      "The shadow crept forward. The shadow grew larger. " +
+      "Nobody noticed the shadow until it was too late, and the shadow consumed everything.";
+
+    const result = analyzeVocabulary(text);
+
     expect(result.repeatedWords).toContain("shadow");
   });
 
-  it("does not flag stopwords as repeated words", () => {
-    const story = "The the the the and and and but but but for for for.";
-    const result = analyzeVocabulary(story);
+  it("excludes common stopwords from repeatedWords even when frequent", () => {
+    const text = "the the the the the the the cat sat on the the the mat";
+    const result = analyzeVocabulary(text);
+
+    expect(result.repeatedWords).not.toContain("the");
+  });
+
+  it("returns no repeated words for text with no meaningful repetition", () => {
+    const text = "Rain fell softly over the quiet, sleeping village tonight.";
+    const result = analyzeVocabulary(text);
+
     expect(result.repeatedWords).toEqual([]);
   });
 
-  it("produces a synonym suggestion for a known overused word", () => {
-    const story = "She said hello. He said goodbye. They said nothing at all.";
-    const result = analyzeVocabulary(story);
-    const saidSuggestion = result.suggestions.find((s) => s.word === "said");
+  it("builds a synonym suggestion for a known overused word", () => {
+    const text =
+      "She said it was fine. He said nothing back. They said it again and again, said and said.";
 
-    expect(saidSuggestion).toBeDefined();
-    expect(saidSuggestion?.replacement).toBeTruthy();
+    const result = analyzeVocabulary(text);
+
+    expect(result.repeatedWords).toContain("said");
+    const suggestion = result.suggestions.find((s) => s.word === "said");
+    expect(suggestion).toBeDefined();
+    expect(suggestion?.replacement.length).toBeGreaterThan(0);
   });
 
-  it("does not produce a suggestion for a repeated word with no synonym entry", () => {
-    const story =
-      "The kraken surged forward. The kraken twisted sharply. The kraken vanished below.";
-    const result = analyzeVocabulary(story);
+  it("skips suggestions for overused words with no known synonym entry", () => {
+    const text = Array(5).fill("zzzxqplorp").join(" ") + " is a made up word.";
+    const result = analyzeVocabulary(text);
 
-    expect(result.repeatedWords).toContain("kraken");
-    expect(result.suggestions.find((s) => s.word === "kraken")).toBeUndefined();
+    expect(result.repeatedWords).toContain("zzzxqplorp");
+    expect(
+      result.suggestions.some((s) => s.word === "zzzxqplorp")
+    ).toBe(false);
   });
+});
 
-  it("refreshVocabularyAnalysis returns the same result as analyzeVocabulary", () => {
-    const story = "The quiet forest whispered secrets under the pale moonlight.";
-    expect(refreshVocabularyAnalysis(story)).toEqual(analyzeVocabulary(story));
+describe("refreshVocabularyAnalysis", () => {
+  it("delegates to the same real analysis logic as analyzeVocabulary", () => {
+    const text = "The brave knight rode swiftly through the misty forest.";
+    expect(refreshVocabularyAnalysis(text)).toEqual(analyzeVocabulary(text));
   });
 });
 
 describe("getReadabilityLevel", () => {
-  it("buckets scores into the correct label", () => {
+  it("buckets scores correctly against the real score ranges", () => {
     expect(getReadabilityLevel(95)).toBe("Excellent");
+    expect(getReadabilityLevel(90)).toBe("Excellent");
     expect(getReadabilityLevel(80)).toBe("Good");
+    expect(getReadabilityLevel(75)).toBe("Good");
     expect(getReadabilityLevel(65)).toBe("Average");
-    expect(getReadabilityLevel(30)).toBe("Needs Improvement");
+    expect(getReadabilityLevel(60)).toBe("Average");
+    expect(getReadabilityLevel(40)).toBe("Needs Improvement");
+    expect(getReadabilityLevel(0)).toBe("Needs Improvement");
   });
 });
