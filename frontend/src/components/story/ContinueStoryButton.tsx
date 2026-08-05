@@ -30,6 +30,11 @@ const ContinueStoryButton = () => {
   const handleContinue = async () => {
     if (!currentStory) return;
 
+    if (!currentStory.chapters || currentStory.chapters.length === 0) {
+      toast.error("No chapters found. Generate the first chapter before continuing.");
+      return;
+    }
+
     try {
       setLoading(true);
 
