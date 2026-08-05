@@ -24,6 +24,7 @@ export const useAccessibility = () => {
         setReducedMotion(JSON.parse(saved));
       } catch {
         // malformed localStorage value — fall back to default (false)
+        setHighContrast(false);
       }
     }
   }, []);
