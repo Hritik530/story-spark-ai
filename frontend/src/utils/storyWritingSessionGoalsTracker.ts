@@ -77,9 +77,13 @@ export function calculateSessionProgress(
 }
 
 export function getSessionHistory(): SessionHistory[] {
-  return JSON.parse(
-    localStorage.getItem("writing-session-history") || "[]"
-  );
+  try {
+    return JSON.parse(
+      localStorage.getItem("writing-session-history") || "[]"
+    ) as SessionHistory[];
+  } catch {
+    return [];
+  }
 }
 
 export function saveSessionHistory(

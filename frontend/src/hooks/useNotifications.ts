@@ -5,7 +5,7 @@ import {
   useMarkNotificationReadMutation,
   useMarkAllNotificationsReadMutation,
 } from "../redux/apis/notification.api";
-import { connectSocket, disconnectSocket } from "../socket/socket.oi";
+import { getSocketIo } from "../socket/socket.oi";
 import type { NotificationItem, INotification } from "../models/notification";
 
 /**
@@ -71,13 +71,10 @@ export const useNotifications = () => {
 
   // Set up Socket.IO listeners
   useEffect(() => {
-    if (!isAuthed) {
-      disconnectSocket();
-      return;
-    }
+    if (!isAuthed) return;
 
     try {
-      const socket = connectSocket();
+      const socket = getSocketIo();
       if (!socket) {
         return;
       }

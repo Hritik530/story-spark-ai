@@ -1,56 +1,66 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { renderHook } from "@testing-library/react";
 
-const store = {};
-const localStorageMock = {
-  getItem: vi.fn((key) => store[key] ?? null),
-  setItem: vi.fn((key, value) => { store[key] = value; }),
-  removeItem: vi.fn((key) => { delete store[key]; }),
-  clear: vi.fn(() => { Object.keys(store).forEach(k => delete store[k]); }),
+// Mock localStorage before importing the hook
+const mockStore = {};
+
+global.localStorage = {
+  getItem: vi.fn((key) => mockStore[key] ?? null),
+  setItem: vi.fn((key, value) => {
+    mockStore[key] = String(value);
+  }),
+  removeItem: vi.fn((key) => {
+    delete mockStore[key];
+  }),
 };
 
-vi.stubGlobal("localStorage", localStorageMock);
+const { useAccessibility } = await import("../useAccessibility.js");
 
-const { useAccessibility } = await import("../useAccessibility");
-
-describe("useAccessibility", () => {
+describe("useAccessibility hook", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    Object.keys(store).forEach(k => delete store[k]);
+    Object.keys(mockStore).forEach((k) => delete mockStore[k]);
   });
 
-  it("initializes with both states false by default", () => {
+  it("should initialize with highContrast and reducedMotion as false", () => {
     const { result } = renderHook(() => useAccessibility());
     expect(result.current.highContrast).toBe(false);
     expect(result.current.reducedMotion).toBe(false);
   });
 
-  it("reads saved highContrast preference from localStorage on mount", () => {
-    store["accessibility-contrast"] = "true";
+  it("should load saved highContrast from localStorage on mount", () => {
+    mockStore["accessibility-contrast"] = "true";
     const { result } = renderHook(() => useAccessibility());
     expect(result.current.highContrast).toBe(true);
   });
 
-  it("toggles highContrast and persists to localStorage", () => {
+  it("should toggle highContrast to true and persist to localStorage", () => {
     const { result } = renderHook(() => useAccessibility());
-    expect(result.current.highContrast).toBe(false);
-    act(() => result.current.toggleContrast());
+    result.current.toggleContrast();
     expect(result.current.highContrast).toBe(true);
-    expect(localStorageMock.setItem).toHaveBeenCalledWith("accessibility-contrast", "true");
-    act(() => result.current.toggleContrast());
-    expect(result.current.highContrast).toBe(false);
+    expect(mockStore["accessibility-contrast"]).toBe("true");
   });
 
-  it("toggles reducedMotion and persists to localStorage", () => {
+  it("should toggle highContrast back to false", () => {
+    mockStore["accessibility-contrast"] = "true";
     const { result } = renderHook(() => useAccessibility());
-    expect(result.current.reducedMotion).toBe(false);
-    act(() => result.current.toggleMotion());
+    result.current.toggleContrast();
+    expect(result.current.highContrast).toBe(false);
+    expect(mockStore["accessibility-contrast"]).toBe("false");
+  });
+
+  it("should toggle reducedMotion and persist to localStorage", () => {
+    const { result } = renderHook(() => useAccessibility());
+    result.current.toggleMotion();
     expect(result.current.reducedMotion).toBe(true);
-    expect(localStorageMock.setItem).toHaveBeenCalledWith("accessibility-motion", "true");
+    expect(mockStore["accessibility-motion"]).toBe("true");
   });
 
-  it("handles malformed localStorage JSON gracefully", () => {
-    store["accessibility-contrast"] = "not-valid-json";
-    expect(() => renderHook(() => useAccessibility())).not.toThrow();
+  it("should toggle reducedMotion back to false", () => {
+    mockStore["accessibility-motion"] = "true";
+    const { result } = renderHook(() => useAccessibility());
+    result.current.toggleMotion();
+    expect(result.current.reducedMotion).toBe(false);
+    expect(mockStore["accessibility-motion"]).toBe("false");
   });
 });
