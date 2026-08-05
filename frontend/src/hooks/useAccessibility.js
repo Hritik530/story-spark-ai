@@ -11,7 +11,6 @@ export const useAccessibility = () => {
       try {
         setHighContrast(JSON.parse(saved));
       } catch {
-        // Invalid JSON in localStorage, default to false
       }
     }
   }, []);
