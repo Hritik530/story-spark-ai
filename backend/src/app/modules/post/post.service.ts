@@ -681,7 +681,7 @@ const forkStory = async (postId: string, token: ITokenPayload) => {
 
 const getGenres = async (): Promise<string[]> => {
   const genres = await Post.distinct("tag", { isDeleted: { $ne: true }, tag: { $nin: [null, ""] } });
-  return genres.sort();
+  return genres.sort((a, b) => a - b);
 };
 
 const bulkDeletePosts = async (ids: string[], token: ITokenPayload) => {
