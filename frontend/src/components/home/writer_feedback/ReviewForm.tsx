@@ -101,7 +101,8 @@ const ReviewForm: React.FC = () => {
       setFeedback("");
       setRating(0);
       setErrors({});
-    } catch {
+    } catch (error) {
+      console.error("Failed to submit review", error);
       setErrors({ submit: "Failed to submit review. Please try again." });
       setSuccess(false);
     }
