@@ -61,5 +61,44 @@ const ThemeToggle: React.FC = () => {
       });
     });
 
+    // Complete the animation logic that was missing
     transition.ready.then(() => {
-    .catch(err => console.error(err))
+      const clipPath = [
+        `circle(0px at ${x}px ${y}px)`,
+        `circle(${endRadius}px at ${x}px ${y}px)`,
+      ];
+      
+      document.documentElement.animate(
+        {
+          clipPath: isDarkCurrent ? [...clipPath].reverse() : clipPath,
+        },
+        {
+          duration: 500,
+          easing: "ease-in-out",
+          pseudoElement: isDarkCurrent
+            ? "::view-transition-old(root)"
+            : "::view-transition-new(root)",
+        }
+      );
+    }).catch(err => console.error(err));
+
+    transition.finished.finally(() => {
+      document.documentElement.classList.remove("theme-transitioning");
+    });
+  };
+
+  // Return the actual button UI using the imported icons
+  return (
+    <button
+      onClick={handleToggle}
+      className="p-2 rounded-full focus:outline-none hover:bg-gray-200 dark:hover:bg-gray-800 transition-colors z-50 relative"
+      aria-label="Toggle theme"
+    >
+      <div ref={iconRef}>
+        {isDark ? <Moon size={24} /> : <Sun size={24} />}
+      </div>
+    </button>
+  );
+};
+
+export default ThemeToggle;

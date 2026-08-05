@@ -1,3 +1,4 @@
+
 /**
  * Lightweight frontend logging wrapper.
  *
