@@ -1,5 +1,6 @@
 import express from "express";
 import { AuthRouter } from "../app/modules/auth/auth.router";
+import storyRoutes from "../routes/story.routes";
 import { UserRouter } from "../app/modules/user/user.router";
 import { AIModelRouter } from "../app/modules/ai_model/ai_model.router";
 import { VerifyEmailRouter } from "../app/modules/verify_email/verify_email.router";
@@ -11,7 +12,6 @@ import { ReviewRouter } from "../app/modules/review/review.router";
 import { ReactionRouter } from "../app/modules/reaction/reaction.router";
 import { ContactRoutes } from "../app/modules/contact/contact.route";
 import { StoriesRouter } from "../routes/stories";
-import storyRoutes from "../routes/story.routes";
 import { ReportRouter } from "../app/modules/report/report.router";
 import { NewsletterRouter } from "../app/modules/newsletter/newsletter.route";
 import paymentRouter from "../router/payment.route";
@@ -29,7 +29,14 @@ import { ChatRouter } from "../app/modules/chat/chat.router";
 import { SearchRouter } from "../app/modules/search/search.router";
 
 import { StoryConsistencyRouter } from "../app/modules/story_consistency/story_consistency.router";
+import { StoryRatingRouter } from "../app/modules/story_rating/story_rating.router";
+import { UsageRouter } from "../app/modules/ai_model/usage.router";
+import { CollectionRouter } from "../app/modules/collection/collection.router";
+import { ChapterIllustrationRouter } from "../app/modules/chapter_illustration/chapter_illustration.router";
+import { StoryBranchingRouter } from "../app/modules/story_branching/story_branching.router";
+
 const router = express.Router();
+
 
 const modules = [
   {
@@ -93,16 +100,19 @@ const modules = [
     router: StoryVersionRouter,
   },
   {
+    // NEW — same "/story" prefix, different sub-paths (/generate, /continue,
+    // /continuations). Express tries routers in array order, so this is safe
+    // to add right after StoryVersionRouter above.
+    path: "/story",
+    router: storyRoutes,
+  },
+  {
     path: "/analytics",
     router: AnalyticsRouter,
   },
   {
     path: "/stories",
     router: StoriesRouter,
-  },
-  {
-    path: "/story-continuation",
-    router: storyRoutes,
   },
   {
     path: "/story-inspiration",
@@ -148,16 +158,32 @@ const modules = [
     path: "/story-consistency",
     router: StoryConsistencyRouter,
   },
-
-  {
-    path: "/stories",
-    router: storyRoutes,
-  },
   {
     path: "/search",
     router: SearchRouter,
   },
+  {
+    path: "/story-rating",
+    router: StoryRatingRouter,
+  },
+  {
+    path: "/usage",
+    router: UsageRouter,
+  },
+  {
+    path: "/collections",
+    router: CollectionRouter,
+  },
+  {
+    path: "/chapter-illustrations",
+    router: ChapterIllustrationRouter,
+  },
+  {
+    path: "/story-branches",
+    router: StoryBranchingRouter,
+  },
 ];
+
 
 modules.forEach((route) => router.use(route.path, route.router));
 
