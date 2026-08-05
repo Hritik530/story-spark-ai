@@ -5,9 +5,14 @@ export interface WritingGoal {
 
 export const getGoal = (): WritingGoal => {
   const goal = localStorage.getItem("writing-goal");
-  return goal
-    ? JSON.parse(goal)
-    : { target: 1000, current: 0 };
+  if (!goal) {
+    return { target: 1000, current: 0 };
+  }
+  try {
+    return JSON.parse(goal) as WritingGoal;
+  } catch {
+    return { target: 1000, current: 0 };
+  }
 };
 
 export const saveGoal = (goal: WritingGoal) => {
