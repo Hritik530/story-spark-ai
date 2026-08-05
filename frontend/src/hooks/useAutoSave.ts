@@ -21,15 +21,28 @@ interface QueuedSave {
 }
 
 export const offlineQueue: QueuedSave[] = [];
+let flushInProgress: Promise<void> | null = null;
+
+async function saveDraftToServer(item: Pick<QueuedSave, "draftId" | "title" | "content">) {
+  // PATCH /api/v1/story/:id/save
+
 let globalIsOnline = typeof navigator !== "undefined" ? navigator.onLine : true;
 
 let flushInProgress: Promise<void> | null = null;
 
 async function saveDraftToServer(item: Pick<QueuedSave, "draftId" | "title" | "content">) {
+
   await api.patch(`/story/${item.draftId}/save`, {
     title: item.title,
     content: item.content,
   });
+}
+
+
+export async function flushOfflineQueue(queue: QueuedSave[]) {
+  for (const item of queue) {
+    await saveDraftToServer(item);
+  }
 }
 
 async function flushOfflineQueueOnce(
@@ -219,7 +232,6 @@ export function useAutoSave(draftId: string, title: string, content: string) {
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
-      globalIsOnline = true;
       flushOfflineQueueOnce(
         () => setSaveStatus("saving"),
         () => {
@@ -237,7 +249,6 @@ export function useAutoSave(draftId: string, title: string, content: string) {
 
     const handleOffline = () => {
       setIsOnline(false);
-      globalIsOnline = false;
     };
 
     window.addEventListener("online", handleOnline);

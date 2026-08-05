@@ -1,7 +1,7 @@
 import { Application, Request, Response } from "express";
 import mongoose from "mongoose";
 import config from "./config";
-import app, { defaultCorsOrigins } from "./app";
+import app from "./app";
 import dns from "node:dns";
 import http from "http";
 import { Server } from "socket.io";
@@ -67,8 +67,7 @@ async function reconnectMongo() {
 
 async function connectDB() {
   if (mongoose.connection.readyState === 1) return;
-  // config.database_url is guaranteed non-empty by config/index.ts – it throws at
-  // module load time if DATABASE_URL is missing, so no runtime guard is needed here
+
   if (!mongoose.connection.listeners('error').length) {
     mongoose.connection.on('error', (err) => {
       logger.error('MongoDB runtime connection error:', err);
@@ -91,14 +90,16 @@ async function connectDB() {
   });
 }
 
+let httpServer: http.Server;
+
 async function main() {
   let httpServer: http.Server | undefined;
 
   // ==========================================
-  // CENTRALIZED GRACEFUL SHUTDOWN HANDLERS FOR #2784
+  // CENTRALIZED GRACEFUL SHUTDOWN HANDLERS
   // ==========================================
   const handleGracefulShutdown = async (errorType: string, error: unknown) => {
-    logger.error(`💥 CRITICAL: ${errorType} encountered! Initiating defensive shutdown cleanup...`);
+    logger.error(`CRITICAL: ${errorType} encountered! Initiating defensive shutdown cleanup...`);
     logger.error(error);
 
     try {
@@ -109,15 +110,15 @@ async function main() {
             else resolve();
           });
         });
-        logger.info('🔌 HTTP server closed.');
+        logger.info('HTTP server closed.');
       }
       if (mongoose && mongoose.connection && mongoose.connection.readyState !== 0) {
         await mongoose.connection.close();
-        logger.info('🔌 MongoDB connection safely closed.');
+        logger.info('MongoDB connection safely closed.');
       }
       process.exit(1);
     } catch (shutdownError) {
-      logger.error('❌ Error during graceful shutdown cleanup sequence:', shutdownError);
+      logger.error('Error during graceful shutdown cleanup sequence:', shutdownError);
       process.exit(1);
     }
   };
@@ -127,7 +128,7 @@ async function main() {
     void handleGracefulShutdown('Unhandled Rejection', reason);
   });
 
-  // Intercept unexpected application crashes before they tear down the system
+
   process.on('uncaughtException', (error: Error) => {
     void handleGracefulShutdown('Uncaught Exception', error);
   });
@@ -142,6 +143,14 @@ async function main() {
   try {
     httpServer = http.createServer(app);
 
+    const defaultCorsOrigins = process.env.NODE_ENV === "development"
+      ? ["http://localhost:4001", "http://localhost:4002"]
+      : [];
+
+    const socketCorsOrigins = config.cors_origins && config.cors_origins.length > 0
+      ? config.cors_origins
+      : defaultCorsOrigins;
+
     // Recovers orders left in "paid_pending_entitlement" by a crash between
     // the Order write and the User write in verifyPayment. See issue #4876.
     startOrderReconciliationJob();
@@ -151,15 +160,25 @@ async function main() {
         ? config.cors_origins
         : defaultCorsOrigins;
 
+
     // Single Socket.IO instance: full CORS methods + credentials, rate
     // limiting, JWT auth handshake, and per-user room joining.
     const io = new Server(httpServer, {
       cors: {
         origin: socketCorsOrigins,
+
+        credentials: true,
+        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      },
+    });
+
+    // Apply rate limiting to all Socket.IO connections
+
         methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         credentials: true,
       },
     });
+
 
     io.use(socketRateLimiter);
 
@@ -173,7 +192,7 @@ async function main() {
         const verifiedUser = JwtHelpers.verifyToken(
           token,
           config.jwt.secret as Secret
-        );
+        ) as any;
         const userId = verifiedUser._id || verifiedUser.userId || verifiedUser.sub || verifiedUser.id;
         if (!userId) {
           return next(new Error("Unauthorized"));
@@ -186,6 +205,11 @@ async function main() {
       }
     });
 
+    // Setup Socket.IO namespaces
+    setupCollabSocket(io);
+    setNotificationSocket(io);
+    new YjsGateway(io);
+
     io.on("connection", (socket) => {
       const userId = socket.data.userId as string | undefined;
       if (userId) {
@@ -193,11 +217,14 @@ async function main() {
       }
     });
 
+    logger.info("Socket.IO server initialized with rate limiting");
+
     setNotificationSocket(io);
     setupCollabSocket(io);
     new YjsGateway(io);
 
     logger.info("🔌 Socket.IO server initialized with rate limiting");
+
 
     httpServer.listen(config.port, () => {
       logger.info(`Story-Spark-AI app listening on port ${config.port}`);

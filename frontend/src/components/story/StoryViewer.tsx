@@ -4,7 +4,7 @@ import ReadingTimeBadge from "../ReadingTimeBadge";
 import toast from "react-hot-toast";
 import jsPDF from "jspdf";
 import JSZip from "jszip";
-import { AudioPlayer } from "../AudioPlayer";
+import AudioPlayer from "../AudioPlayer";
 
 interface Props {
   chapters: Chapter[];
@@ -26,7 +26,7 @@ const StoryViewer: React.FC<Props> = ({ chapters, storyId, truncated }) => {
     (showResumeBanner && resumeBannerRef.current ? resumeBannerRef.current.offsetHeight + 8 : 0);
 
   // Custom formatting states
-  const [fontFamily, setFontFamily] = useState<"helvetica" | "times" | "courier">("helvetica");
+  const [fontFamily, setFontFamily] = useState<"helvetica" | "times" | "courier" | "serif">("helvetica");
   const [fontSize, setFontSize] = useState<number>(11);
   const [lineHeight, setLineHeight] = useState<number>(1.5);
   const [themeStyle, setThemeStyle] = useState<"standard" | "classic" | "modern">("standard");

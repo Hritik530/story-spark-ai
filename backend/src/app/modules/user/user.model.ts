@@ -112,12 +112,10 @@ UserSchema.pre("save", async function (next) {
     this.passwordChangedAt = new Date(Date.now() - 1000);
   }
 
-
     user.password = await bcrypt.hash(
       user.password,
       Number(config.bcrypt_salt_rounds)
     );
-  
 
   next();
 });

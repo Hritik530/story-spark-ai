@@ -443,15 +443,6 @@ const router = createBrowserRouter([
             element: lazyPage(<StoriesComponent />),
           },
           {
-  path: "profile",
-  element: lazyPage(<ProfileComponent />),
-},
-
-{
-  path: "settings",
-  element: lazyPage(<SettingComponent />),
-},
-          {
             path: "branching-story",
             element: lazyPage(<BranchingStory />),
           },
