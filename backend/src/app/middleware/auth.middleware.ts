@@ -55,13 +55,7 @@ const extractTokenFromRequest = (req: Request): string => {
     return bearerToken;
   }
 
-  const cookieToken =
-    req.cookies?.accessToken || req.cookies?.token;
-
-  return bearerToken || cookieToken || "";
-
-    req.cookies?.accessToken ||
-    req.cookies?.token;
+  const cookieToken = req.cookies?.accessToken || req.cookies?.token;
 
   if (!cookieToken) {
     return "";
@@ -98,39 +92,22 @@ const auth =
           );
         }
 
-        // Verify JWT token
-        const verifiedUser = JwtHelpers.verifyToken(
+        const decodedUser = JwtHelpers.verifyToken(
           token,
           config.jwt.secret as Secret
-        ) as JwtVerifiedUser;
+        );
 
-        if (!verifiedUser?._id) {
-          throw new ApiError(
-            httpStatus.UNAUTHORIZED,
-            "Invalid token"
-
-          const decodedUser = JwtHelpers.verifyToken(
-            token,
-            config.jwt.secret as Secret
-          );
-
-          if (!isJwtVerifiedUser(decodedUser)) {
-            throw new ApiError(
-              httpStatus.UNAUTHORIZED,
-              "Invalid token"
-            );
+        if (!isJwtVerifiedUser(decodedUser)) {
+          throw new ApiError(httpStatus.UNAUTHORIZED, "Invalid token");
         }
 
-      const verifiedUser = decodedUser;
-
+        const verifiedUser = decodedUser;
         const user = await User.findById(verifiedUser._id);
 
         if (!user) {
-          throw new ApiError(
-            httpStatus.UNAUTHORIZED,
-            "User not found"
-          );
+          throw new ApiError(httpStatus.UNAUTHORIZED, "User not found");
         }
+
         if (user.passwordChangedAt && verifiedUser.iat) {
           const changedAtSeconds = Math.floor(user.passwordChangedAt.getTime() / 1000);
 
@@ -141,7 +118,7 @@ const auth =
             );
           }
         }
-        // Token version validation replaces blacklist check
+
         if (
           typeof verifiedUser.tokenVersion === "number" &&
           user.tokenVersion !== verifiedUser.tokenVersion
@@ -152,38 +129,21 @@ const auth =
           );
         }
 
-        // Check user status
         if (user.status !== USER_STATUS.ACTIVE) {
-          throw new ApiError(
-            httpStatus.FORBIDDEN,
-            "Your account is not active"
-          );
+          throw new ApiError(httpStatus.FORBIDDEN, "Your account is not active");
         }
 
-        // Role authorization
         if (requiredRole.length) {
-          if (
-            !verifiedUser.role ||
-            !requiredRole.includes(verifiedUser.role)
-          ) {
-            throw new ApiError(
-              httpStatus.FORBIDDEN,
-              "Forbidden"
-            );
+          if (!verifiedUser.role || !requiredRole.includes(verifiedUser.role)) {
+            throw new ApiError(httpStatus.FORBIDDEN, "Forbidden");
           }
         }
 
         req.user = user as Express.Request["user"];
-
         next();
       } catch (err) {
         next(err);
       }
-      req.user = user;
-      return next();
-    } catch (err) {
-      return next(err);
-    }
-  };
+    };
 
 export default auth;
