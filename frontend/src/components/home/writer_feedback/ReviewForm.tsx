@@ -88,7 +88,13 @@ const ReviewForm: React.FC = () => {
     }
 
     try {
-      await createReview({ name, role, feedback, rating, imgSrc: "" });
+      await createReview({
+        name,
+        role,
+        feedback,
+        rating,
+        imgSrc: "",
+      }).unwrap();
       setSuccess(true);
       setName("");
       setRole("");
