@@ -56,6 +56,7 @@ export class YjsGateway {
         this.docs.set(storyId, doc);
         // Load persisted state if any
         CollabService.getCollabState(storyId).then(state => {
+
           if (state) {
             const update = Uint8Array.from(Buffer.from(state, 'base64'));
             Y.applyUpdate(doc!, update);
@@ -143,3 +144,5 @@ export class YjsGateway {
     return color;
   }
 }
+
+        .catch(err => console.error(err))
