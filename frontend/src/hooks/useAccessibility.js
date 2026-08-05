@@ -11,6 +11,7 @@ export const useAccessibility = () => {
       try {
         setHighContrast(JSON.parse(saved));
       } catch {
+        setHighContrast(false);
       }
     }
   }, []);
