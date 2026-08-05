@@ -7,7 +7,12 @@ export const useAccessibility = () => {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const saved = localStorage.getItem('accessibility-contrast');
-    if (saved) setHighContrast(JSON.parse(saved));
+    if (saved) {
+      try {
+        setHighContrast(JSON.parse(saved));
+      } catch {
+      }
+    }
   }, []);
 
   const toggle = (setter, key) => {
