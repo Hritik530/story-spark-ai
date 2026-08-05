@@ -16,7 +16,14 @@ const StoryViewer: React.FC<Props> = ({ chapters, storyId, truncated }) => {
   const [progress, setProgress] = useState(0);
   const [showResumeBanner, setShowResumeBanner] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const truncatedBannerRef = useRef<HTMLDivElement>(null);
+  const resumeBannerRef = useRef<HTMLDivElement>(null);
   const storageKey = `story-progress-${storyId}`;
+
+  // Compute dynamic top offset for the control panel so it sits below any visible banners
+  const controlPanelTop =
+    (truncated && truncatedBannerRef.current ? truncatedBannerRef.current.offsetHeight + 8 : 0) +
+    (showResumeBanner && resumeBannerRef.current ? resumeBannerRef.current.offsetHeight + 8 : 0);
 
   // Custom formatting states
   const [fontFamily, setFontFamily] = useState<"helvetica" | "times" | "courier">("helvetica");
@@ -309,14 +316,14 @@ ${ncxNavPoints}  </navMap>
       className="flex-1 overflow-y-auto px-8 py-10 bg-zinc-950"
     >
       {truncated && (
-        <div className="sticky top-0 z-30 bg-yellow-900/90 backdrop-blur-md rounded-lg p-3 mb-4 flex justify-between items-center">
+        <div ref={truncatedBannerRef} className="sticky top-0 z-30 bg-yellow-900/90 backdrop-blur-md rounded-lg p-3 mb-4 flex justify-between items-center">
           <span className="text-sm text-yellow-200">
             Your story was truncated because it exceeded the maximum length. Try a shorter prompt.
           </span>
         </div>
       )}
       {showResumeBanner && (
-        <div className="sticky top-0 z-20 bg-indigo-900/90 backdrop-blur-md rounded-lg p-3 mb-4 flex justify-between items-center">
+        <div ref={resumeBannerRef} className="sticky top-0 z-20 bg-indigo-900/90 backdrop-blur-md rounded-lg p-3 mb-4 flex justify-between items-center">
           <span className="text-sm text-indigo-200">
             You left off at {progress}% – continue where you stopped?
           </span>
@@ -338,7 +345,10 @@ ${ncxNavPoints}  </navMap>
       )}
 
       {/* Control Panel for Formatting Settings */}
-      <div className="sticky top-0 z-10 bg-zinc-950/90 backdrop-blur-md rounded-lg p-4 mb-8 border border-zinc-800">
+      <div
+        className="sticky z-10 bg-zinc-950/90 backdrop-blur-md rounded-lg p-4 mb-8 border border-zinc-800"
+        style={{ top: `${controlPanelTop}px` }}
+      >
         <div className="w-full h-3 bg-zinc-800 rounded-full overflow-hidden">
           <div
             className="h-full bg-indigo-500 transition-all duration-300"
