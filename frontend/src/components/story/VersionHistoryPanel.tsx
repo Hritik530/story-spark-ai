@@ -37,6 +37,7 @@ const VersionHistoryPanel = () => {
   }
 
   const reversedVersions = [...versions].reverse();
+  const [pendingDeleteId, setPendingDeleteId] = React.useState<string | null>(null);
 
   return (
     <div className="w-72 bg-zinc-900 h-full border-r border-zinc-800 p-5 overflow-y-auto">
@@ -101,16 +102,32 @@ const VersionHistoryPanel = () => {
                   Restore Version
                 </button>
 
-                <button
-                  onClick={() =>
-                    dispatch(
-                      deleteVersion(version.id)
-                    )
-                  }
-                  className="w-full bg-red-600 hover:bg-red-700 text-white text-sm py-2 rounded-lg transition"
-                >
-                  Delete Version
-                </button>
+                {pendingDeleteId === version.id ? (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        dispatch(deleteVersion(version.id));
+                        setPendingDeleteId(null);
+                      }}
+                      className="flex-1 bg-red-600 hover:bg-red-700 text-white text-xs py-2 rounded-lg transition"
+                    >
+                      Confirm Delete
+                    </button>
+                    <button
+                      onClick={() => setPendingDeleteId(null)}
+                      className="flex-1 bg-zinc-700 hover:bg-zinc-600 text-white text-xs py-2 rounded-lg transition"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setPendingDeleteId(version.id)}
+                    className="w-full bg-red-600 hover:bg-red-700 text-white text-sm py-2 rounded-lg transition"
+                  >
+                    Delete Version
+                  </button>
+                )}
               </div>
             </div>
           );
