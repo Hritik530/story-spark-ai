@@ -5,6 +5,7 @@ import { resolveSocketUrl } from "../helpers/socket-url";
 
 let socketIoInstance: Socket | null = null;
 let tokenCheckInterval: any = null;
+let refCount = 0;
 
 const startTokenCheck = (socket: Socket) => {
   if (tokenCheckInterval) clearInterval(tokenCheckInterval);
@@ -32,6 +33,8 @@ export const getSocketIo = (): Socket | null => {
 };
 
 export const connectSocket = (): Socket | null => {
+  refCount++;
+
   const token = getToken();
   if (!token) {
     console.warn("[Story Spark] User not authenticated. Cannot connect to Socket.IO.");
@@ -87,6 +90,9 @@ export const connectSocket = (): Socket | null => {
 };
 
 export const disconnectSocket = (): void => {
+  refCount = Math.max(0, refCount - 1);
+  if (refCount > 0) return;
+
   stopTokenCheck();
   if (socketIoInstance) {
     socketIoInstance.disconnect();
