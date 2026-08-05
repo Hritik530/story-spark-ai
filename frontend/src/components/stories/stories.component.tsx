@@ -1,117 +1,853 @@
-import React, { useState, useEffect } from 'react';
-import { useBlocker } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from "react";
+import StoriesViewComponent, { IStories } from "./stories.view.component";
+import { Link, useLocation, useNavigate } from "react-router-dom";
+import { getUserInfo, isLoggedIn } from "../../services/auth.service";
+import { getRequestLimit, getWordCount, prompts } from "./stories.utils";
+import {
+  useGenerateFreeModelMutation,
+  useGenerateModelMutation,
+} from "../../redux/apis/ai.model.api";
+import toast, { Toaster } from "react-hot-toast";
+import { SubmitHandler, useForm } from "react-hook-form";
+import { useGetProfileInfoQuery } from "../../redux/apis/user.api";
+import { getErrorMessage } from "../../error/error.message";
+import useKeyboardShortcuts from "../../hooks/useKeyboardShortcuts";
+import StoryGeneratingAnimation from "../loading/story-generating-animation.component";
+type Inputs = {
+  prompt: string;
+};
 
-import { getBaseUrl } from '../../helpers/config';
-import StoryGeneratingAnimation from '../loading/story-generating-animation.component';
+const MAX_PROMPT_LENGTH = 2000;
+const WARN_THRESHOLD = 0.85;
+const lengths = ["short", "medium", "long"] as const;
 
-const StoryInspirationPage: React.FC = () => {
-  const [intro, setIntro] = useState('');
-  const [ideas, setIdeas] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+const StoriesComponent = () => {
+  const location = useLocation();
+const navigate = useNavigate();
+const { register, handleSubmit, reset, setValue } = useForm<Inputs>();
+  const [stories, setStories] = useState<IStories[]>([]);
+  const [loading, setLoading] = useState<boolean>(false);
+  const { data } = useGetProfileInfoQuery(undefined);
+  const userRole = getUserInfo();
+  const subscriptionType = (userRole?.subscriptionType as string) || "free";
+  const login = isLoggedIn();
+  const [generateModel] = useGenerateModelMutation();
+  const [generateFreeModel] = useGenerateFreeModelMutation();
+  const [selectedPrompt, setSelectedPrompt] = useState<string>("");
+  const [showHelpModal, setShowHelpModal] = useState(false);
+const [selectedGenre, setSelectedGenre] = useState<string>("");
+const [selectedLength, setSelectedLength] = useState<string>("medium");
+const [textareaValue, setTextareaValue] = useState<string>("");
+const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
+const dropdownRef = useRef<HTMLDivElement>(null);
+const inputRef = useRef<HTMLTextAreaElement>(null);
+const [guestRequestCount, setGuestRequestCount] = useState<number>(() =>
+  parseInt(localStorage.getItem("guestRequestCount") || "0", 10),
+);
+const [showLimitModal, setShowLimitModal] = useState<boolean>(false);
 
-  const isDirty = intro.trim().length > 0;
+useEffect(() => {
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}, []);
 
-  useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isDirty) {
-        e.preventDefault();
-        e.returnValue = "";
+useEffect(() => {
+  const handleClickOutside = (event: MouseEvent) => {
+    if (
+      dropdownRef.current &&
+      !dropdownRef.current.contains(event.target as Node)
+    ) {
+      setIsDropdownOpen(false);
+    }
+  };
+
+
+  const handleKeyDown = (event: KeyboardEvent) => {
+    if (event.key === "Escape") {
+      setIsDropdownOpen(false);
+
+  const StoriesViewComponent: React.FC<StoriesComponentProps> = ({
+    stories,
+    isLogin,
+    setStories,
+    isLoading,
+    onPublishSuccess,
+  }) => {
+    const location = useLocation();
+    const navigate = useNavigate();
+    const { register, handleSubmit, reset, setValue, formState: { isSubmitting } } = useForm<Inputs>();
+    const [stories, setStories] = useState<IStories[]>([]);
+    const [loading, setLoading] = useState<boolean>(false);
+    const { data } = useGetProfileInfoQuery(undefined);
+    const userRole = getUserInfo();
+    const subscriptionType = (userRole?.subscriptionType as string) || "free";
+    const login = isLoggedIn();
+    const [showUpgradeModal, setShowUpgradeModal] = useState<boolean>(false);
+    const { data: usageData, refetch: refetchUsage } = useGetUsageQuery(undefined, { skip: !login });
+    const [generateModel] = useGenerateModelMutation();
+    const [generateFreeModel] = useGenerateFreeModelMutation();
+    const [selectedPrompt, setSelectedPrompt] = useState<string>("");
+    const [showHelpModal, setShowHelpModal] = useState(false);
+    const [selectedGenre, setSelectedGenre] = useState<string>("");
+    const [selectedLength, setSelectedLength] = useState<string>("medium");
+    const [textareaValue, setTextareaValue] = useState<string>("");
+    const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
+    const { data: rosterData } = useGetCharactersQuery(undefined, { skip: !login });
+    const rosterCharacters = rosterData?.data || [];
+    const [saveCharacter, { isLoading: isSavingCharacter }] = useSaveCharacterMutation();
+    const [selectedRosterCharacterId, setSelectedRosterCharacterId] =
+      useState<string>("");
+    const selectedRosterCharacter = rosterCharacters.find(
+      (character) => character._id === selectedRosterCharacterId
+    );
+
+    const handleSaveToRoster = async (char: ICharacter) => {
+      try {
+        await saveCharacter({
+          name: char.name,
+          role: char.role,
+          personality: char.personality
+        }).unwrap();
+        toast.success("Character saved to roster!");
+      } catch (error) {
+        toast.error("Failed to save character.");
       }
     };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [isDirty]);
 
-  const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) =>
-      isDirty && currentLocation.pathname !== nextLocation.pathname
-  );
-
-  useEffect(() => {
-    if (blocker.state === "blocked") {
-      const proceed = window.confirm(
-        "You have unsaved content in the intro field. Are you sure you want to leave?"
+    const handleLoadFromRoster = (
+      charId: string,
+      rosterCharId: string
+    ) => {
+      const rosterChar = rosterCharacters.find(
+        (character) => character._id === rosterCharId
       );
-      if (proceed) {
-        blocker.proceed();
-      } else {
-        blocker.reset();
-      }
-    }
-  }, [blocker]);
 
-  const fetchIdeas = async () => {
-    setLoading(true);
-    setError('');
-    setIdeas([]);
-    try {
-      const response = await fetch(`${getBaseUrl()}/story-inspiration`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ intro }),
+      if (!rosterChar) return;
+
+      setSelectedRosterCharacterId(rosterCharId);
+
+      if (typeof setCharacters === "function") {
+        setCharacters((prev: ICharacter[]) =>
+          prev.map((character) =>
+            character.id === charId
+              ? {
+                ...character,
+                name: rosterChar.name,
+                role: rosterChar.role || "",
+                personality: rosterChar.personality,
+              }
+              : character
+          )
+        );
+      }
+    };
+    const dropdownRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLTextAreaElement>(null);
+    const [guestRequestCount, setGuestRequestCount] = useState<number>(() =>
+      parseInt(localStorage.getItem("guestRequestCount", 10) || "0", 10),
+    );
+    const [showLimitModal, setShowLimitModal] = useState<boolean>(false);
+
+    useEffect(() => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }, []);
+
+    useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+        if (
+          dropdownRef.current &&
+          !dropdownRef.current.contains(event.target as Node)
+        ) {
+          setIsDropdownOpen(false);
+        }
+      };
+
+      const handleKeyDown = (event: KeyboardEvent) => {
+        if (event.key === "Escape") {
+          setIsDropdownOpen(false);
+
+          const [selectedGenre, setSelectedGenre] = useState<string>(
+
+            draft?.genre
+              ? (GENRES.find((g) => g.name === draft.genre || g.value === draft.genre)?.value ?? "≡ƒºÖ Fantasy")
+              : "≡ƒºÖ Fantasy",
+          );
+
+          const [selectedLength, setSelectedLength] = useState<string>(draft?.length || "medium");
+          const [selectedTone, setSelectedTone] = useState<ToneLabel | "">(draft?.tone || "Dramatic");
+          const [selectedAudience, setSelectedAudience] = useState<string>("General Audience");
+          const [textareaValue, setTextareaValue] = useState<string>(() => {
+            return location.state?.prompt || draft?.prompt || "";
+          });
+
+          const [showTemplateScreen, setShowTemplateScreen] = useState<boolean>(() => {
+            return !location.state?.prompt && !draft?.prompt;
+          });
+
+          const handleSelectTemplate = (template: any) => {
+            const fullPremise = `${template.premise}\n\nSuggested Plot Points:\n- ${template.plotPoints.join('\n- ')}`;
+            setTextareaValue(fullPremise);
+            setSelectedGenre(template.genre);
+            setSelectedLength(template.length);
+            setCharacters(template.characters);
+            setShowTemplateScreen(false);
+          };
+
+          const handleStartBlank = () => {
+            setShowTemplateScreen(false);
+          };
+
+
+          const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
+          const [selectedLanguage, setSelectedLanguage] = useState<string>("English");
+          const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState<boolean>(false);
+
+
+
+
+  const playSoundtrack = useCallback((genre: string) => {
+    const soundtrack = soundtrackMap[genre];
+    if (!soundtrack) return;
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current.src = soundtrack;
+      audioRef.current.play().catch(() => {
+        /* ignore autoplay restrictions */
       });
-      if (!response.ok) throw new Error('Failed to fetch ideas');
-      const data = await response.json();
-      setIdeas(data.data?.ideas || data.ideas || []);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : "Something went wrong");
+    }
+  }, []); // audioRef is a stable ref — no deps needed
+
+          const dropdownRef = useRef<HTMLDivElement>(null);
+          const languageDropdownRef = useRef<HTMLDivElement>(null);
+          const inputRef = useRef<HTMLTextAreaElement>(null);
+          const audioRef = useRef<HTMLAudioElement | null>(null);
+
+
+          const playSoundtrack = (genre: string) => {
+
+            const soundtrack = soundtrackMap[genre];
+
+            if (!soundtrack) return;
+
+            if (audioRef.current) {
+              audioRef.current.pause();
+              audioRef.current.currentTime = 0;
+              audioRef.current.src = soundtrack;
+              audioRef.current.play().catch(() => {
+                /* ignore autoplay restrictions */
+              });
+            }
+          }, []);
+
+    const [isCopied, setIsCopied] = useState<boolean>(false);
+    const [showWorldMap, setShowWorldMap] = useState<boolean>(false);
+    const [, setShowRemix] = useState<boolean>(false);
+    const [createPost] = useCreatePostMutation();
+    const [deletePost] = useDeletePostMutation();
+    const { data: profile } = useGetProfileInfoQuery(undefined, { skip: !isLogin });
+    const lastSavedContentRef = useRef<string>("");
+    const isSavingRef = useRef<boolean>(false);
+    const hasSavedSessionRef = useRef<boolean>(false);
+    const savedPostIdRef = useRef<string | null>(null);
+    // Alternate ending state & hooks
+    const [endingsCache, setEndingsCache] = useState<{
+      [uuid: string]: { style: string; ending: string; fullStory: string }[];
+    }>({});
+    const [originalStoryContent, setOriginalStoryContent] = useState<{
+      [uuid: string]: string;
+    }>({});
+    const [isGeneratingEndings, setIsGeneratingEndings] = useState<boolean>(false);
+    const [activeEndingTab, setActiveEndingTab] = useState<string>("Happy Ending");
+    const [narrationWordIndex, setNarrationWordIndex] = useState<number>(0);
+    const [narrationState, setNarrationState] = useState<NarrationPlaybackState>("idle");
+
+    const [generateAlternateEndings] = useGenerateAlternateEndingsMutation();
+    const [generateFreeAlternateEndings] = useGenerateFreeAlternateEndingsMutation();
+
+    useEffect(() => {
+      if (selectedStory && !originalStoryContent[selectedStory.uuid]) {
+        setOriginalStoryContent((prev) => ({
+          ...prev,
+          [selectedStory.uuid]: selectedStory.content,
+        }));
+      }
+    }, [selectedStory, originalStoryContent]);
+
+    useEffect(() => {
+      if (narrationState === "playing") {
+        const activeWordElement = document.querySelector('[data-active-word="true"]');
+        if (activeWordElement) {
+          activeWordElement.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+            inline: "nearest"
+          });
+        }
+      }
+    }, [narrationWordIndex, narrationState]);
+
+    const activeGenerationRef = useRef<{ abort: () => void } | null>(null);
+    const isGenerationInProgressRef = useRef(false);
+
+    const [guestRequestCount, setGuestRequestCount] = useState<number>(() =>
+      parseInt(localStorage.getItem("guestRequestCount", 10) || "0", 10)
+    );
+    const [showLimitModal, setShowLimitModal] = useState<boolean>(false);
+    const [isRecentPromptsOpen, setIsRecentPromptsOpen] = useState<boolean>(false);
+    const [isHighLatency, setIsHighLatency] = useState<boolean>(false);
+    const { recentPrompts, addPrompt, removePrompt, clearAll } = useRecentPrompts();
+
+    const text = UI_TEXT[selectedLanguage] ?? UI_TEXT.English;
+    const genreLabels = GENRE_LABELS[selectedLanguage] ?? GENRE_LABELS.English;
+
+    useEffect(() => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }, []);
+
+    const handleGenerateAlternateEndings = async () => {
+      if (!selectedStory) return;
+      setIsGeneratingEndings(true);
+      const toastId = toast.loading("Generating alternate endings...");
+      try {
+        const payload = {
+          title: selectedStory.title,
+          content: originalStoryContent[selectedStory.uuid] || selectedStory.content,
+          tag: selectedStory.tag,
+
+          language: selectedStory.language || "English",
+
+        };
+
+        const generationRequest = isLogin
+          ? generateAlternateEndings(payload)
+          : generateFreeAlternateEndings(payload);
+
+        const res = await generationRequest.unwrap();
+        if (res && res.data) {
+          setEndingsCache((prev) => ({
+            ...prev,
+            [selectedStory.uuid]: res.data,
+          }));
+          toast.success("Alternate endings generated successfully!");
+        } else {
+          toast.error("Failed to generate alternate endings.");
+        }
+      } catch (error) {
+        console.error(error);
+        toast.error("Failed to generate alternate endings. Please try again.");
+      } finally {
+        toast.dismiss(toastId);
+        setIsGeneratingEndings(false);
+      }
+    };
+
+    const handleApplyEnding = (endingData: { style: string; ending: string; fullStory: string }) => {
+      if (!selectedStory) return;
+      const updatedStory = {
+        ...selectedStory,
+        content: endingData.fullStory,
+      };
+      setSelectedStory(updatedStory);
+      setStories(
+        stories.map((s) => (s.uuid === selectedStory.uuid ? updatedStory : s))
+      );
+      toast.success(`${endingData.style} applied to story!`);
+    };
+
+    const handleResetEnding = () => {
+      if (!selectedStory) return;
+      const originalContent = originalStoryContent[selectedStory.uuid];
+      if (!originalContent) return;
+      const updatedStory = {
+        ...selectedStory,
+        content: originalContent,
+      };
+      setSelectedStory(updatedStory);
+      setStories(
+        stories.map((s) => (s.uuid === selectedStory.uuid ? updatedStory : s))
+      );
+      toast.success("Reverted to original story ending!");
+    };
+
+    const [isPlayingAudio, setIsPlayingAudio] = useState<boolean>(false);
+    const [isPausedAudio, setIsPausedAudio] = useState<boolean>(false);
+
+    // Draft restore + autosave
+    useEffect(() => {
+      if (!textareaValue.trim()) {
+        return;
+      }
+
+      const timer = setTimeout(() => {
+        const draftData: StoryDraftData = {
+          prompt: textareaValue,
+          genre: selectedGenre,
+          length: selectedLength,
+          language: selectedLanguage,
+          tone: selectedTone,
+          savedAt: new Date().toISOString(),
+        };
+
+        try {
+          saveStoryDraft(draftData);
+          setDraftStatus(`Draft saved ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`);
+        } catch (err) {
+          if (err instanceof DOMException && err.name === "QuotaExceededError") {
+
+            toast.error("Couldn't autosave draft ├óΓé¼ΓÇ¥ storage limit reached.");
+          }
+
+        }
+      }, 1000);
+      return () => clearTimeout(timer);
+    }, [textareaValue, selectedGenre, selectedLength, selectedLanguage, selectedTone]);
+
+
+
+    if (!("speechSynthesis" in window)) {
+      toast.error("Text-to-speech is not supported in this browser.");
+      return;
+    }
+  };
+
+  document.addEventListener("mousedown", handleClickOutside);
+  document.addEventListener("keydown", handleKeyDown);
+
+  return () => {
+    document.removeEventListener("mousedown", handleClickOutside);
+    document.removeEventListener("keydown", handleKeyDown);
+  };
+}, []);
+
+useEffect(() => {
+  if (location.state && location.state.prompt) {
+    setTextareaValue(location.state.prompt);
+    navigate(location.pathname, { replace: true, state: {} });
+  }
+}, [location, navigate]);
+
+useEffect(() => {
+  setValue("prompt", textareaValue);
+}, [textareaValue, setValue]);
+
+  const onSubmit: SubmitHandler<Inputs> = async (data) => {
+    if (!login && guestRequestCount >= 3) {
+      setShowLimitModal(true);
+      return;
+    }
+
+    if (data.prompt === "") {
+      toast.error("Please enter a prompt to generate a story.");
+      return;
+    }
+    if (getWordCount(data.prompt) < 10) {
+      toast.error(
+        "Please enter a prompt with at least 10 words to generate a story.",
+      );
+      return;
+    }
+    setLoading(true);
+
+    try {
+      const payload = {
+        prompt: selectedGenre
+          ? `[Genre: ${selectedGenre}] ${data.prompt}`
+          : data.prompt,
+        wordLength:
+          selectedLength === "short" ? 150
+          : selectedLength === "long" ? 500
+          : 250,
+      };
+      const res = login
+        ? await generateModel(payload).unwrap()
+        : await generateFreeModel(payload).unwrap();
+      if (res) {
+        toast.success(res.message);
+        setStories(res.data as IStories[]);
+        setSelectedPrompt("");
+        setValue("prompt", "");
+        reset();
+        if (!login) {
+          const newCount = guestRequestCount + 1;
+          setGuestRequestCount(newCount);
+          localStorage.setItem("guestRequestCount", String(newCount));
+        }
+      }
+    } catch (error: unknown) {
+      toast.error(getErrorMessage(error));
     } finally {
       setLoading(false);
     }
   };
 
+const handleClearPrompt = () => {
+  setTextareaValue("");
+  setSelectedPrompt("");
+  setValue("prompt", "");
+
+  if (inputRef.current) {
+    inputRef.current.focus();
+  }
+};
+
+  const isOverLimit = textareaValue.length >= MAX_PROMPT_LENGTH;
+  const isNearLimit = textareaValue.length >= MAX_PROMPT_LENGTH * WARN_THRESHOLD;
+  
+  useKeyboardShortcuts({
+  onOpenHelp: () => setShowHelpModal(true),
+  onCloseHelp: () => setShowHelpModal(false),
+  onGenerate: () => {
+    if (inputRef.current) {
+      const form = inputRef.current.closest("form");
+      if (form) form.requestSubmit();
+    }
+  },
+  onPublish: () => {
+    const publishBtn = document.getElementById("publish-story-btn");
+    publishBtn?.click();
+  },
+  focusPrompt: () => {
+    inputRef.current?.focus();
+  },
+  hasStory: stories.length > 0,
+});
   return (
-    <div className="max-w-xl mx-auto p-6 bg-white rounded shadow mt-10">
-      <h2 className="text-2xl font-bold mb-4">Get Story Inspiration</h2>
+    <div className="bg-gradient-to-br animate-gradient-slow min-h-screen relative overflow-x-hidden">
+      <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="py-6 flex flex-col md:flex-row items-center md:items-start justify-between gap-4">
+          <div className="pt-2 w-full md:w-auto flex justify-start">
+            <Link to="/">
+              <div className="!rounded-button bg-gradient-to-r from-white/20 to-white/10 hover:from-white/30 hover:to-white/20 text-gray-300 px-3 py-2 flex items-center gap-2 transition-all duration-300 rounded whitespace-nowrap">
+                <i className="fa-solid fa-left-long"></i> BACK
+              </div>
+            </Link>
+          </div>
+
+          {!login && (
+            <div className="pt-2 text-center">
+              <div className="!rounded-button bg-gradient-to-r from-white/20 to-white/10 text-gray-400 px-3 py-2 flex items-center gap-2 transition-all duration-300 rounded text-sm whitespace-normal md:whitespace-nowrap leading-relaxed">
+                <span>
+                  Free access for 3 requests — <Link to="/login"><span className="text-indigo-400 underline font-semibold">Login</span></Link> for more!
+                </span>
+              </div>
+            </div>
+          )}
+
+          <div className="flex flex-col items-center md:items-end pt-2 w-full md:w-auto">
+            <button className="!rounded-button bg-gradient-to-r from-white/20 to-white/10 hover:from-white/30 hover:to-white/20 text-gray-300 px-3 py-2 flex items-center gap-2 transition-all duration-300 rounded whitespace-nowrap">
+              <span>
+                <span className="text-gray-400 text-xs mr-1">Per Month</span>
+                {getRequestLimit(subscriptionType)}
+              </span>
+              <Link to="/pricing" className="border-1 border-white/20 pl-2 text-gray-300">
+               Upgrade
+              </Link>
+              
+              <i className="fas fa-bolt text-yellow-400"></i>
+            </button>
+            <div className="mt-3 text-gray-500 text-xs text-center md:text-right">
+              <span>
+                This month request:{" "}
+                {login ? (data?.requestsThisMonth ?? 0) : guestRequestCount}
+              </span>
+              <br />
+              <span>Total posts: {login ? (data?.postsCount ?? 0) : 0}</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="mt-11">
+          <h1 className="text-gray-300 text-2xl sm:text-3xl md:text-4xl font-extrabold text-center mb-12">
+            ✨ Turn Your Ideas Into{" "}
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-300 to-blue-400">
+              Amazing Stories!
+            </span>{" "}
+            ✨
+          </h1>
+
+          <div className="max-w-3xl mx-auto px-4 sm:px-0">
+            <div className="bg-blue-500/10 rounded-md p-4 border border-gray-400">
+<div className="relative">
+  <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
+    <div className="flex flex-wrap gap-2 mb-3">
+      {[
+        "🎭 Drama",
+        "😂 Comedy",
+        "😱 Horror",
+        "💕 Romance",
+        "🚀 Sci-Fi",
+        "🧙 Fantasy",
+        "🔍 Mystery",
+        "🌟 Adventure",
+      ].map((genre) => (
+        <button
+          key={genre}
+          type="button"
+          onClick={() =>
+            setSelectedGenre(selectedGenre === genre ? "" : genre)
+          }
+          className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 ${
+            selectedGenre === genre
+              ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/30"
+              : "bg-white/10 text-gray-400 hover:bg-white/20 hover:text-gray-200"
+          }`}
+        >
+          {genre}
+        </button>
+      ))}
+    </div>
+
+    <div className="flex flex-wrap items-center gap-2 mb-3">
+      <span className="text-xs text-gray-400 mr-1">📏 Length:</span>
+
+      {lengths.map((length) => (
+        <button
+          key={length}
+          type="button"
+          onClick={() => setSelectedLength(length)}
+          className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 ${
+            selectedLength === length
+              ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/30"
+              : "bg-white/10 text-gray-400 hover:bg-white/20 hover:text-gray-200"
+          }`}
+        >
+          {length.charAt(0).toUpperCase() + length.slice(1)}
+        </button>
+      ))}
+    </div>
+
+    <div className="relative">
       <textarea
-        className="w-full border rounded p-2 mb-4"
-        rows={4}
-        placeholder="Enter your story intro..."
-        value={intro}
-        onChange={e => setIntro(e.target.value)}
-        disabled={loading}
-      />
+  {...register("prompt")}
+  ref={(el) => {
+    register("prompt").ref(el);
+    inputRef.current = el;
+  }}
+        className={`w-full h-32 sm:h-40 resize-none border-none outline-none bg-transparent text-gray-300 focus:ring-0 text-lg leading-relaxed tracking-wide placeholder:italic placeholder:text-gray-500 pr-10 transition-colors duration-200 ${
+          isOverLimit
+            ? "ring-1 ring-red-500 rounded"
+            : isNearLimit
+            ? "ring-1 ring-yellow-400 rounded"
+            : ""
+        }`}
+        placeholder="Every great story begins with a single idea. What's yours?"
+        value={textareaValue}
+        maxLength={MAX_PROMPT_LENGTH}
+        onChange={(e) => setTextareaValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            const form = e.currentTarget.closest("form");
+            if (form) form.requestSubmit();
+          }
+        }}      
+        />
 
-    <div className="flex gap-2">
-  <button
-    className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700"
-    onClick={fetchIdeas}
-    disabled={loading || !intro.trim()}
-  >
-    {loading ? 'Generating...' : 'Get Ideas'}
-  </button>
+      {textareaValue.length > 0 && (
+        <button
+          type="button"
+          onClick={handleClearPrompt}
+          className="absolute right-2 top-2 text-gray-400 hover:text-red-500 transition-colors duration-200"
+          aria-label="Clear prompt"
+          title="Clear prompt"
+        >
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+      )}
 
-  {intro.trim() && (
+      <div className="flex items-center justify-between mt-1 px-1">
+        {isOverLimit ? (
+          <p className="text-xs text-red-400 flex items-center gap-1">
+            <span>⚠</span> Character limit reached — generate is disabled
+          </p>
+        ) : isNearLimit ? (
+          <p className="text-xs text-yellow-400 flex items-center gap-1">
+            <span>⚠</span>{" "}
+            {MAX_PROMPT_LENGTH - textareaValue.length} characters remaining
+          </p>
+        ) : (
+          <span />
+        )}
+
+        <span
+          className={`text-xs tabular-nums ml-auto ${
+            isOverLimit
+              ? "text-red-400 font-medium"
+              : isNearLimit
+              ? "text-yellow-400"
+              : "text-gray-500"
+          }`}
+        >
+          {textareaValue.length} / {MAX_PROMPT_LENGTH}
+        </span>
+      </div>
+    </div>
+
+    <p className="text-xs text-gray-500 mt-1 px-1">
+      💡  <span className="font-medium">Keyboard tip:</span> Press{" "}
+      <kbd className="px-1 py-0.5 text-xs bg-gray-700 rounded border border-gray-600">
+        Enter
+      </kbd>{" "}
+      to generate &bull;{" "}
+      <kbd className="px-1 py-0.5 text-xs bg-gray-700 rounded border border-gray-600">
+        Ctrl + Enter
+      </kbd>{" "}
+      also works &bull;{" "}
+      <kbd className="px-1 py-0.5 text-xs bg-gray-700 rounded border border-gray-600">
+        Shift + Enter
+      </kbd>{" "}
+      for new line
+    </p>
+
+    <div className="flex justify-end mt-2 w-full">
+      <button
+        type="submit"
+        disabled={loading || isOverLimit}
+        className={`w-full sm:w-auto justify-center rounded-lg bg-gradient-to-r from-blue-400 to-indigo-500 text-gray-200 px-6 py-3 font-semibold ${
+          loading || isOverLimit
+            ? "opacity-50 cursor-not-allowed"
+            : "hover:shadow-lg hover:shadow-indigo-500/50"
+        } transition-all duration-300 transform hover:scale-105 flex items-center space-x-2 group cursor-pointer`}
+      >
+        <i className="fas fa-wand-magic-sparkles text-xl transition-transform duration-300 group-hover:animate-wiggle"></i>
+        {loading ? "Generating..." : "Generate"}
+      </button>
+    </div>
+  </form>
+</div>
+            </div>
+
+            <div className="w-full max-w-2xl m-auto mt-4">
+  <h1 className="text-sm text-gray-500 mb-1">
+    Here are some example prompts you can refer to:-
+  </h1>
+
+  <div className="relative" ref={dropdownRef}>
     <button
       type="button"
-      onClick={() => {
-        setIntro('');
-        setIdeas([]);
-        setError('');
-      }}
-      className="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600"
+      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+      className="w-full p-3 bg-slate-800 text-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 flex items-center justify-between text-sm text-left transition-all duration-200"
     >
-      Clear Prompt
+      <span className="truncate pr-4">
+        {selectedPrompt || "Select a prompt"}
+      </span>
+
+      <span
+        className={`text-gray-300 transition-transform duration-200 ${
+          isDropdownOpen ? "rotate-180" : ""
+        }`}
+      >
+        ▼
+      </span>
     </button>
-  )}
+
+    {isDropdownOpen && (
+      <ul className="absolute z-10 w-full mt-1 max-h-60 overflow-y-auto bg-slate-800 border border-slate-700/50 rounded-lg shadow-xl focus:outline-none divide-y divide-slate-700/30">
+        {prompts.map((item) => (
+          <li key={item.id}>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedPrompt(item.prompt);
+                setTextareaValue(item.prompt);
+                setIsDropdownOpen(false);
+              }}
+              className="w-full text-left px-4 py-3 text-sm text-gray-400 hover:bg-indigo-600 hover:text-white transition-colors duration-150 whitespace-normal break-words leading-relaxed"
+            >
+              {item.prompt}
+            </button>
+          </li>
+        ))}
+      </ul>
+    )}
+  </div>
 </div>
+          </div>
+        </div>
+      </div>
 
-      {error && <div className="text-red-600 mt-4">{error}</div>}
+      {showHelpModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-md w-full">
+            <h2 className="text-xl font-bold text-white mb-4">
+              Keyboard Shortcuts
+            </h2>
 
-      {!loading && ideas.length > 0 && (
-        <div className="mt-6">
-          <h3 className="text-xl font-semibold mb-2">Story Ideas:</h3>
-          <ul className="list-disc pl-6">
-            {ideas.map((idea, idx) => (
-              <li key={idx} className="mb-2">{idea}</li>
-            ))}
-          </ul>
+            <div className="space-y-3 text-gray-300 text-sm">
+              <div><kbd>?</kbd> Open help</div>
+              <div><kbd>Esc</kbd> Close help</div>
+              <div><kbd>/</kbd> Focus prompt</div>
+              <div><kbd>Ctrl + Enter</kbd> Generate story</div>
+              <div><kbd>Ctrl + S</kbd> Publish story</div>
+            </div>
+
+            <button
+              onClick={() => setShowHelpModal(false)}
+              className="mt-6 w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg"
+            >
+              Close
+            </button>
+          </div>
         </div>
       )}
+
+      {loading && <StoryGeneratingAnimation />}
+      <StoriesViewComponent
+        stories={stories}
+        isLogin={login}
+        setStories={setStories}
+      />
+      {/* Single decorative blur — absolute so it scrolls with content and doesn't bleed over modals */}
+      <div className="absolute top-[-200px] left-[250px] w-[800px] h-[350px] bg-blue-500/20 rounded-full blur-3xl -z-10 pointer-events-none"></div>
+
+      {showLimitModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#0f172a] border border-white/10 rounded-2xl shadow-[0_0_15px_rgba(59,130,246,0.5)] max-w-md w-full p-6 transform transition-all">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i className="fas fa-lock text-2xl text-blue-400"></i>
+              </div>
+              <h3 className="text-2xl font-bold text-gray-200 mb-2">
+                Free Limit Reached
+              </h3>
+              <p className="text-gray-400 mb-6 leading-relaxed">
+                You've used all 3 free story generations. Login to continue
+                creating more stories.
+              </p>
+              <div className="flex flex-col gap-3">
+                <Link
+                  to="/login"
+                  className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg hover:shadow-indigo-500/25"
+                >
+                  Login
+                </Link>
+                <button
+                  onClick={() => setShowLimitModal(false)}
+                  className="w-full bg-transparent hover:bg-white/5 text-gray-400 hover:text-gray-300 font-medium py-3 px-4 rounded-xl transition-all"
+                >
+                  Continue Browsing
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Toaster position="top-right" reverseOrder={false} />
     </div>
   );
 };
 
-export default StoryInspirationPage;
-
+export default StoriesComponent;
