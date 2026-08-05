@@ -109,8 +109,8 @@ const updateUser = async (token: ITokenPayload, payload: Partial<IUser>) => {
                    <p>This link expires in 1 hour.</p>`,
           });
         }
-      } catch {
-        // Email service unavailable; token stored in user document for direct verification
+      } catch (error) {
+        console.error('[UserService] Error:', error);
       }
       return {
         pendingEmail: newEmail,

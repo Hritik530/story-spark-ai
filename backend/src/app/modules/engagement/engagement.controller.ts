@@ -10,6 +10,8 @@ export const EngagementController = {
     } catch (error) {
       console.error("Engagement analysis failed", error);
       return res.status(500).json({
+  } catch (error) {
+    console.error('[EngagementController] Failed:', error);
         success: false,
         message: "Engagement analysis failed. Please try again.",
       });
