@@ -702,7 +702,7 @@ useEffect(() => {
     const dropdownRef = useRef<HTMLDivElement>(null);
     const inputRef = useRef<HTMLTextAreaElement>(null);
     const [guestRequestCount, setGuestRequestCount] = useState<number>(() =>
-      parseInt(localStorage.getItem("guestRequestCount") || "0", 10),
+      parseInt(localStorage.getItem("guestRequestCount", 10) || "0", 10),
     );
     const [showLimitModal, setShowLimitModal] = useState<boolean>(false);
 
@@ -849,7 +849,7 @@ useEffect(() => {
     const isGenerationInProgressRef = useRef(false);
 
     const [guestRequestCount, setGuestRequestCount] = useState<number>(() =>
-      parseInt(localStorage.getItem("guestRequestCount") || "0", 10)
+      parseInt(localStorage.getItem("guestRequestCount", 10) || "0", 10)
     );
     const [showLimitModal, setShowLimitModal] = useState<boolean>(false);
     const [isRecentPromptsOpen, setIsRecentPromptsOpen] = useState<boolean>(false);
@@ -2935,11 +2935,8 @@ if (isLoading) {
         isLogin={login}
         setStories={setStories}
       />
-      <div className="absolute top-[-200px] left-[250px] w-[800px] h-[350px] bg-blue-500/20 rounded-full blur-3xl -z-10"></div>
-
-      <div className="fixed top-[-200px] left-[250px] w-[800px] h-[350px] bg-blue-500/20 rounded-full blur-3xl -z-10"></div>
-
-      <div className="absolute top-[-200px] left-[250px] w-[800px] h-[350px] bg-blue-500/20 rounded-full blur-3xl -z-10"></div>
+      {/* Single decorative blur — absolute so it scrolls with content and doesn't bleed over modals */}
+      <div className="absolute top-[-200px] left-[250px] w-[800px] h-[350px] bg-blue-500/20 rounded-full blur-3xl -z-10 pointer-events-none"></div>
 
       {showLimitModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">

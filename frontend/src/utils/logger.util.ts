@@ -1,3 +1,4 @@
+
 /**
  * Lightweight frontend logging wrapper.
  *
@@ -26,4 +27,6 @@ const logger = {
   },
 };
 
+
 export default logger;
+

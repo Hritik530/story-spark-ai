@@ -34,7 +34,7 @@ const ScrollToTopButton = () => {
       aria-label="Scroll to top"
       title="Scroll to top"
       className={`
-        fixed bottom-24 right-7
+        fixed bottom-28 right-7
         w-12 h-12 rounded-full
         border border-white/20 cursor-pointer
         bg-gradient-to-br from-blue-600 to-indigo-600
