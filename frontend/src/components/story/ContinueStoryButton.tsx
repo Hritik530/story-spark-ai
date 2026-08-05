@@ -1,4 +1,3 @@
-/* eslint-disable */
 import React, { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import toast from "react-hot-toast";
@@ -38,9 +37,12 @@ const ContinueStoryButton = () => {
 
       dispatch(addChapter(nextChapter));
       toast.success("New chapter generated successfully!");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(error);
-      const errorMsg = error?.message || "Failed to continue story. Please try again.";
+      const errorMsg =
+        error instanceof Error
+          ? error.message
+          : "Failed to continue story. Please try again.";
       toast.error(errorMsg);
     } finally {
       setLoading(false);

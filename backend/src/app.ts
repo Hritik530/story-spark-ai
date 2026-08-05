@@ -9,17 +9,17 @@ import helmet from "helmet";
 import rateLimit from "express-rate-limit";
 import cors from "cors";
 import httpStatus from "http-status";
-import cookieParser from "cookie-parser";
 
+import cookieParser from "cookie-parser";
 import config from "./config";
 import { Routers } from "./router";
 import globalErrorHandler from "./app/middleware/global.error.handler";
+import leaderboardRoute from "./routes/leaderboard.route";
 import globalRateLimiter from "./app/middleware/global.rate-limiter";
 import { sanitizeAllMiddleware } from "./app/middleware/sanitize.middleware";
 import ApiError from "./errors/api_error";
 
 const app: Application = express();
-
 // Only trust the proxy in production, where we're actually behind a real
 // reverse proxy. In dev there's no real proxy in front of us, so trusting
 // X-Forwarded-For would let a client spoof its own IP and bypass rate limiting.
@@ -70,16 +70,17 @@ app.use(
 // never counted against the limit before CORS has a chance to respond.
 app.use(globalRateLimiter);
 
-// ─── 1. PAYLOAD PARSERS & SANITIZATION ───
-// Payload limit set to 10mb to support large story content and
-// character network data without triggering 413 errors.
+// Payload limit set to 10mb to support large story content and character
+// network data without triggering 413 errors. Previously 2mb, which was
+// too restrictive for real story payloads — see PR discussion if this
+// needs revisiting against DoS-hardening concerns.
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser() as unknown as RequestHandler);
 app.use(sanitizeAllMiddleware);
 
-// ─── 2. LEGACY ROUTE REWRITE RULES ───
-app.use((req: Request, _res: Response, next: NextFunction) => {
+// Legacy Route Rewrite Rules
+app.use((req, res, next) => {
   if (
     req.method === "GET" &&
     /^\/api\/story\/[a-f0-9]{24}\/character-network$/i.test(req.path)
@@ -89,23 +90,16 @@ app.use((req: Request, _res: Response, next: NextFunction) => {
   next();
 });
 
-// ─── 3. API ROUTERS ───
 app.use("/api/v1", Routers);
 
-// ─── 4. 404 NOT FOUND HANDLER ───
 app.use((req: Request, _res: Response, next: NextFunction) => {
-  const error = new ApiError(httpStatus.NOT_FOUND, "API Not Found");
-  error.errorMessages = [
-    {
-      path: req.originalUrl,
-      message: "The requested API endpoint route does not exist.",
-    },
-  ];
-  next(error);
+  next(
+    new ApiError(
+      httpStatus.NOT_FOUND,
+      `The requested API endpoint route does not exist: ${req.originalUrl}`
+    )
+  );
 });
-
-// ─── 5. GLOBAL ERROR HANDLER ───
 app.use(globalErrorHandler);
 
 export default app;
-export { defaultCorsOrigins };
