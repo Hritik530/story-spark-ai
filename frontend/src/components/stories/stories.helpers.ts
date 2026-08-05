@@ -16,6 +16,11 @@ export function getErrorMessage(error: unknown): string {
     if (error.status >= 500) {
       return "A server error occurred. Please try again later.";
     }
+    // For all other ApiError status codes (4xx), surface the server's message
+    // so users get actionable context (e.g. "Token expired", "Plan limit reached")
+    if (error.message) {
+      return error.message;
+    }
   }
   if (error instanceof TypeError) {
     return "Could not reach the server. Please check your connection and try again.";
