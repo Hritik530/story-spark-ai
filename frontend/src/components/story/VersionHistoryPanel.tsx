@@ -91,16 +91,19 @@ const VersionHistoryPanel = () => {
               )}
 
               <div className="flex flex-col gap-2 mt-3">
-                <button
-                  onClick={() =>
-                    dispatch(
-                      restoreVersion(version.id)
-                    )
-                  }
-                  className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm py-2 rounded-lg transition"
-                >
-                  Restore Version
-                </button>
+                {/* Hide restore on the current version — would discard unsaved edits */}
+                {!isCurrent && (
+                  <button
+                    onClick={() =>
+                      dispatch(
+                        restoreVersion(version.id)
+                      )
+                    }
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm py-2 rounded-lg transition"
+                  >
+                    Restore Version
+                  </button>
+                )}
 
                 {pendingDeleteId === version.id ? (
                   <div className="flex gap-2">
