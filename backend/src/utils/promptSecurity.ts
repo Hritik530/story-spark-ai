@@ -9,8 +9,17 @@
  */
 import { assertContentSafe } from "./contentModeration";
 
+
+export class SecurityError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SecurityError";
+  }
+}
+
 // Added strict character limit to prevent DoS/ReDoS
 const MAX_PROMPT_LENGTH = 10000; 
+
 
 const FORBIDDEN_PATTERNS: RegExp[] = [
   // Direct instruction override attempts
@@ -77,7 +86,7 @@ const normalizeText = (input: string): string => {
 
 export const validateAndFormatPrompt = (userPrompt: string): string => {
   if (!userPrompt || typeof userPrompt !== "string") {
-    throw new Error("Security Violation: Invalid prompt input.");
+    throw new SecurityError("Security Violation: Invalid prompt input.");
   }
 
   // Length check BEFORE expensive normalizations and regex matching
@@ -90,7 +99,7 @@ export const validateAndFormatPrompt = (userPrompt: string): string => {
   // Semantic filtering against expanded pattern set
   for (const pattern of FORBIDDEN_PATTERNS) {
     if (pattern.test(canonicalPrompt)) {
-      throw new Error("Security Violation: Malicious prompt injection detected.");
+      throw new SecurityError("Security Violation: Malicious prompt injection detected.");
     }
   }
 
@@ -106,7 +115,7 @@ export const validateAndFormatPrompt = (userPrompt: string): string => {
 
 export const validateOutput = (aiResponse: string): string => {
   if (!aiResponse || typeof aiResponse !== "string") {
-    throw new Error("Security Violation: Invalid AI response.");
+    throw new SecurityError("Security Violation: Invalid AI response.");
   }
 
   const canonicalResponse = normalizeText(aiResponse).toLowerCase();
@@ -114,7 +123,7 @@ export const validateOutput = (aiResponse: string): string => {
   // Unified post-generation validation — check for leaked system instructions
   for (const pattern of LEAK_PATTERNS) {
     if (canonicalResponse.includes(pattern)) {
-      throw new Error("Security Violation: AI output leaked system instructions.");
+      throw new SecurityError("Security Violation: AI output leaked system instructions.");
     }
   }
 
