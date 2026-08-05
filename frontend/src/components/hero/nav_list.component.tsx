@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, NavLink } from "react-router-dom";
 import { isLoggedIn, removeUserInfo } from "../../services/auth.service";
 import ThemeToggle from "../theme/theme_toggle.component";
+import CursorStylePicker from "../theme/cursor_style_picker.component";
 import { ArrowRight, Sparkles } from "lucide-react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -157,6 +158,7 @@ import { useNavigate, useLocation } from "react-router-dom";
       </nav>
 
       <div className="flex items-center gap-3">
+        <CursorStylePicker />
         <ThemeToggle />
         {loggedIn ? (
           <button

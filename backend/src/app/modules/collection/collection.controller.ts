@@ -29,8 +29,8 @@ interface AddStoryBody {
 const getOptionalToken = async (req: Request): Promise<ITokenPayload  | null> => {
   try {
     return getToken(req);
-  } catch {
-    return null; // Unauthenticated visitor
+  } catch (error) {
+    console.error('[CollectionController] Failed:', error);
   }
 };
 

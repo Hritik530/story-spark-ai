@@ -12,6 +12,7 @@ import { setNotificationSocket } from "./socket/notification.socket";
 import { setupCollabSocket } from "./socket/collab.socket";
 import { YjsGateway } from "./app/modules/collab/yjs.gateway";
 import { socketRateLimiter } from "./socket/socket-rate-limiter";
+import { startOrderReconciliationJob } from "./jobs/reconcilePendingOrders.job";
 
 // Override DNS resolvers only when explicitly configured, default to the platform environment
 if (config.dns_servers?.length) {
@@ -66,7 +67,7 @@ async function reconnectMongo() {
 
 async function connectDB() {
   if (mongoose.connection.readyState === 1) return;
-  // config.database_url is guaranteed non-empty by config/index.ts
+
   if (!mongoose.connection.listeners('error').length) {
     mongoose.connection.on('error', (err) => {
       logger.error('MongoDB runtime connection error:', err);
@@ -92,6 +93,8 @@ async function connectDB() {
 let httpServer: http.Server;
 
 async function main() {
+  let httpServer: http.Server | undefined;
+
   // ==========================================
   // CENTRALIZED GRACEFUL SHUTDOWN HANDLERS
   // ==========================================
@@ -101,8 +104,11 @@ async function main() {
 
     try {
       if (httpServer) {
-        await new Promise<void>((resolve) => {
-          httpServer.close(() => resolve());
+        await new Promise<void>((resolve, reject) => {
+          httpServer!.close((err) => {
+            if (err) reject(err);
+            else resolve();
+          });
         });
         logger.info('HTTP server closed.');
       }
@@ -119,11 +125,12 @@ async function main() {
 
   // Catch unhandled Promise failures across asynchronous operations
   process.on('unhandledRejection', (reason: unknown) => {
-    handleGracefulShutdown('Unhandled Rejection', reason);
+    void handleGracefulShutdown('Unhandled Rejection', reason);
   });
 
+
   process.on('uncaughtException', (error: Error) => {
-    handleGracefulShutdown('Uncaught Exception', error);
+    void handleGracefulShutdown('Uncaught Exception', error);
   });
 
   try {
@@ -144,15 +151,35 @@ async function main() {
       ? config.cors_origins
       : defaultCorsOrigins;
 
+    // Recovers orders left in "paid_pending_entitlement" by a crash between
+    // the Order write and the User write in verifyPayment. See issue #4876.
+    startOrderReconciliationJob();
+
+    const socketCorsOrigins =
+      config.cors_origins && config.cors_origins.length > 0
+        ? config.cors_origins
+        : defaultCorsOrigins;
+
+
+    // Single Socket.IO instance: full CORS methods + credentials, rate
+    // limiting, JWT auth handshake, and per-user room joining.
     const io = new Server(httpServer, {
       cors: {
         origin: socketCorsOrigins,
+
         credentials: true,
         methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
       },
     });
 
     // Apply rate limiting to all Socket.IO connections
+
+        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        credentials: true,
+      },
+    });
+
+
     io.use(socketRateLimiter);
 
     io.use((socket, next) => {
@@ -191,6 +218,13 @@ async function main() {
     });
 
     logger.info("Socket.IO server initialized with rate limiting");
+
+    setNotificationSocket(io);
+    setupCollabSocket(io);
+    new YjsGateway(io);
+
+    logger.info("🔌 Socket.IO server initialized with rate limiting");
+
 
     httpServer.listen(config.port, () => {
       logger.info(`Story-Spark-AI app listening on port ${config.port}`);

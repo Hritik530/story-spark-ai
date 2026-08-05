@@ -218,6 +218,7 @@ export const useSpeechSynthesis = (
     setCurrentWordIndex(0);
   }, []);
 
+
   // Initialize speech synthesis support + voice loading.
   useEffect(() => {
     if (!hasSpeechSupport()) {
@@ -396,6 +397,7 @@ export const useSpeechSynthesis = (
       synthRef.current.cancel();
       synthRef.current.speak(utterance);
       setCurrentWordIndex(0);
+  });
     },
 
     [
