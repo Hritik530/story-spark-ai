@@ -16,12 +16,16 @@ export const StoryGenerator: React.FC<StoryGeneratorProps> = ({ onStoryGenerated
   const [stories, setStories] = useState<any[]>([]);
   const [error, setError] = useState<string | null>(null);
 
-  const abortControllerRef = useRef<AbortController | null>(null);
+  // Derived values used both in JSX and inside handleGenerate
   const trimmedPrompt = prompt.trim();
   const promptLength = trimmedPrompt.length;
-  const isPromptInvalid = promptLength > 0 && promptLength < MIN_PROMPT_LENGTH;
+  const isPromptInvalid =
+    promptLength < MIN_PROMPT_LENGTH || promptLength > MAX_PROMPT_LENGTH;
 
+  const abortControllerRef = useRef<AbortController | null>(null);
   const handleGenerate = async () => {
+
+    // trimmedPrompt and promptLength are already derived at component scope above
     if (!trimmedPrompt) {
       setError('Please enter a story prompt.');
       return;
@@ -40,20 +44,19 @@ export const StoryGenerator: React.FC<StoryGeneratorProps> = ({ onStoryGenerated
     setError(null);
     setIsLoading(true);
 
-    const controller = new AbortController();
-    abortControllerRef.current = controller;
-    const timeoutId = window.setTimeout(() => {
+    abortControllerRef.current = new AbortController();
+    const timeoutId = setTimeout(() => {
       abortControllerRef.current?.abort();
-    }, 15000);
+      }, 15000);                                             //timeout after 15 seconds
 
     try {
       const response = await api.post('/ai/generate', {
         prompt: trimmedPrompt,
         variations: variationCount,
       }, {
-        signal: controller.signal,
+        signal: abortControllerRef.current.signal,
       });
-      window.clearTimeout(timeoutId);
+      clearTimeout(timeoutId);
 
       if (response?.data?.variations) {
         setStories(response.data.variations);
@@ -84,7 +87,6 @@ export const StoryGenerator: React.FC<StoryGeneratorProps> = ({ onStoryGenerated
 
       setError(errorMessage);
     } finally {
-      window.clearTimeout(timeoutId);
       setIsLoading(false);
     }
   };

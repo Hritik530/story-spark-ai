@@ -1,6 +1,5 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import StoriesViewComponent, { IStories } from "./stories.view.component";
-import RecentPromptsPanel from "./RecentPromptsPanel";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { getUserInfo, isLoggedIn } from "../../services/auth.service";
 import { getRequestLimit, getWordCount, prompts } from "./stories.utils";
@@ -13,1245 +12,840 @@ import { SubmitHandler, useForm } from "react-hook-form";
 import { useGetProfileInfoQuery } from "../../redux/apis/user.api";
 import { getErrorMessage } from "../../error/error.message";
 import useKeyboardShortcuts from "../../hooks/useKeyboardShortcuts";
-import { useRecentPrompts } from "../../hooks/useRecentPrompts";
 import StoryGeneratingAnimation from "../loading/story-generating-animation.component";
-import { useDebounce } from "../../hooks/useDebounce";
-
-const soundtrackMap: Record<string, string> = {
-  "🧙 Fantasy": "/audio/fantasy.mp3",
-  "😱 Horror": "/audio/horror.mp3",
-  "💕 Romance": "/audio/romance.mp3",
-  "🎭 Drama": "/audio/drama.mp3", 
-  "😂 Comedy": "/audio/comedy.mp3", 
-  "🚀 Sci-Fi": "/audio/sci-fi.mp3", 
-  "🔍 Mystery": "/audio/mystery.mp3", 
-  "🌟 Adventure": "/audio/adventure.mp3"
-};
-
 type Inputs = {
   prompt: string;
 };
 
 const MAX_PROMPT_LENGTH = 2000;
 const WARN_THRESHOLD = 0.85;
-
-const LANGUAGES = [
-  { code: "en", name: "English" },
-  { code: "hi", name: "Hindi" },
-  { code: "es", name: "Spanish" },
-  { code: "fr", name: "French" },
-  { code: "pt", name: "Portuguese" },
-  { code: "de", name: "German" },
-  { code: "ja", name: "Japanese" },
-  { code: "ko", name: "Korean" },
-  { code: "bn", name: "Bengali" },
-  { code: "ta", name: "Tamil" },
-  { code: "te", name: "Telugu" },
-  { code: "mr", name: "Marathi" },
-];
-
-const GENRES = [
-  { value: "🎭 Drama", icon: "🎭", name: "Drama" },
-  { value: "😂 Comedy", icon: "😂", name: "Comedy" },
-  { value: "😱 Horror", icon: "😱", name: "Horror" },
-  { value: "💕 Romance", icon: "💕", name: "Romance" },
-  { value: "🚀 Sci-Fi", icon: "🚀", name: "Sci-Fi" },
-  { value: "🧙 Fantasy", icon: "🧙", name: "Fantasy" },
-  { value: "🔍 Mystery", icon: "🔍", name: "Mystery" },
-  { value: "🌟 Adventure", icon: "🌟", name: "Adventure" },
-] as const;
-
-type GenreName = (typeof GENRES)[number]["name"];
-
-const GENRE_LABELS: Record<string, Record<GenreName, string>> = {
-  English: {
-    Drama: "Drama", Comedy: "Comedy", Horror: "Horror", Romance: "Romance",
-    "Sci-Fi": "Sci-Fi", Fantasy: "Fantasy", Mystery: "Mystery", Adventure: "Adventure",
-  },
-  Spanish: {
-    Drama: "Drama", Comedy: "Comedia", Horror: "Terror", Romance: "Romance",
-    "Sci-Fi": "Ciencia ficcion", Fantasy: "Fantasia", Mystery: "Misterio", Adventure: "Aventura",
-  },
-  French: {
-    Drama: "Drame", Comedy: "Comedie", Horror: "Horreur", Romance: "Romance",
-    "Sci-Fi": "Science-fiction", Fantasy: "Fantastique", Mystery: "Mystere", Adventure: "Aventure",
-  },
-  Portuguese: {
-    Drama: "Drama", Comedy: "Comedia", Horror: "Terror", Romance: "Romance",
-    "Sci-Fi": "Ficcao cientifica", Fantasy: "Fantasia", Mystery: "Misterio", Adventure: "Aventura",
-  },
-  Hindi: {
-    Drama: "नाटक", Comedy: "हास्य", Horror: "डरावनी", Romance: "प्रेम",
-    "Sci-Fi": "विज्ञान कथा", Fantasy: "कल्पना", Mystery: "रहस्य", Adventure: "रोमांच",
-  },
-  German: {
-    Drama: "Drama", Comedy: "Komodie", Horror: "Horror", Romance: "Romanze",
-    "Sci-Fi": "Science-Fiction", Fantasy: "Fantasy", Mystery: "Mysterie", Adventure: "Abenteuer",
-  },
-  Japanese: {
-    Drama: "ドラマ", Comedy: "コメディ", Horror: "ホラー", Romance: "ロマンス",
-    "Sci-Fi": "SF", Fantasy: "ファンタジー", Mystery: "ミステリー", Adventure: "冒険",
-  },
-  Korean: {
-    Drama: "드라마", Comedy: "코미디", Horror: "공포", Romance: "로맨스",
-    "Sci-Fi": "SF", Fantasy: "판타지", Mystery: "미스터리", Adventure: "모험",
-  },
-  Bengali: {
-    Drama: "নাটক", Comedy: "কৌতুক", Horror: "ভৌতিক", Romance: "প্রেম",
-    "Sci-Fi": "বিজ্ঞান কল্পকাহিনি", Fantasy: "কল্পনা", Mystery: "রহস্য", Adventure: "অভিযান",
-  },
-  Tamil: {
-    Drama: "நாடகம்", Comedy: "நகைச்சுவை", Horror: "திகில்", Romance: "காதல்",
-    "Sci-Fi": "அறிவியல் புனைவு", Fantasy: "கற்பனை", Mystery: "மர்மம்", Adventure: "சாகசம்",
-  },
-  Telugu: {
-    Drama: "నాటకం", Comedy: "హాస్యం", Horror: "భయానకం", Romance: "ప్రేమ",
-    "Sci-Fi": "విజ్ఞాన కథ", Fantasy: "కాల్పనికం", Mystery: "రహస్యం", Adventure: "సాహసం",
-  },
-  Marathi: {
-    Drama: "नाटक", Comedy: "विनोद", Horror: "भयकथा", Romance: "प्रेमकथा",
-    "Sci-Fi": "विज्ञानकथा", Fantasy: "कल्पनारम्य", Mystery: "रहस्य", Adventure: "साहस",
-  },
-};
-
-type UiText = {
-  back: string;
-  freeAccess: string;
-  login: string;
-  forMore: string;
-  perMonth: string;
-  upgrade: string;
-  monthlyRequests: string;
-  totalPosts: string;
-  titleStart: string;
-  titleAccent: string;
-  length: string;
-  language: string;
-  short: string;
-  medium: string;
-  long: string;
-  promptPlaceholder: string;
-  keyboardTip: string;
-  press: string;
-  toGenerate: string;
-  alsoWorks: string;
-  forNewLine: string;
-  generating: string;
-  generate: string;
-  examples: string;
-  selectPrompt: string;
-  characterLimit: string;
-  charactersRemaining: string;
-  shortcuts: string;
-  openHelp: string;
-  closeHelp: string;
-  focusPrompt: string;
-  generateStory: string;
-  publishStory: string;
-  close: string;
-  freeLimitReached: string;
-  freeLimitMessage: string;
-  continueBrowsing: string;
-  recentPrompts: string;
-  usePrompt: string;
-  delete: string;
-  clearAll: string;
-  noRecentPrompts: string;
-};
-
-const UI_TEXT: Record<string, UiText> = {
-  English: {
-    back: "BACK", freeAccess: "Free access for 3 requests", login: "Login", forMore: "for more!",
-    perMonth: "Per Month", upgrade: "Upgrade", monthlyRequests: "This month request", totalPosts: "Total posts",
-    titleStart: "Turn Your Ideas Into", titleAccent: "Amazing Stories!", length: "Length", language: "Language",
-    short: "Short", medium: "Medium", long: "Long", promptPlaceholder: "Every great story begins with a single idea. What's yours?",
-    keyboardTip: "Keyboard tip:", press: "Press", toGenerate: "to generate", alsoWorks: "also works", forNewLine: "for new line",
-    generating: "Generating...", generate: "Generate", examples: "Here are some example prompts you can refer to:-",
-    selectPrompt: "Select a prompt", characterLimit: "Character limit reached - generate is disabled",
-    charactersRemaining: "characters remaining", shortcuts: "Keyboard Shortcuts", openHelp: "Open help", closeHelp: "Close help",
-    focusPrompt: "Focus prompt", generateStory: "Generate story", publishStory: "Publish story", close: "Close",
-    freeLimitReached: "Free Limit Reached", freeLimitMessage: "You've used all 3 free story generations. Login to continue creating more stories.",
-    continueBrowsing: "Continue Browsing", recentPrompts: "Recent Prompts", usePrompt: "Use", delete: "Delete", clearAll: "Clear All", noRecentPrompts: "No recent prompts yet",
-  },
-  // ... other languages (keep them as is)
-};
-
-const LANGUAGE_STORAGE_KEY = "storySparkLanguage";
-
-// Tone definitions
-const TONES = [
-  { label: "Dark", emoji: "🌑", activeClass: "bg-gray-700 text-gray-100 border-gray-500 shadow-gray-700/40", inactiveClass: "bg-white/5 text-gray-400 border-transparent hover:bg-white/10 hover:text-gray-200" },
-  { label: "Whimsical", emoji: "🌈", activeClass: "bg-sky-500/20 text-sky-300 border-sky-500/60 shadow-sky-500/20", inactiveClass: "bg-white/5 text-gray-400 border-transparent hover:bg-white/10 hover:text-gray-200" },
-  { label: "Dramatic", emoji: "🎬", activeClass: "bg-red-500/20 text-red-300 border-red-500/60 shadow-red-500/20", inactiveClass: "bg-white/5 text-gray-400 border-transparent hover:bg-white/10 hover:text-gray-200" },
-  { label: "Humorous", emoji: "😄", activeClass: "bg-yellow-500/20 text-yellow-300 border-yellow-500/60 shadow-yellow-500/20", inactiveClass: "bg-white/5 text-gray-400 border-transparent hover:bg-white/10 hover:text-gray-200" },
-  { label: "Suspenseful", emoji: "😰", activeClass: "bg-orange-500/20 text-orange-300 border-orange-500/60 shadow-orange-500/20", inactiveClass: "bg-white/5 text-gray-400 border-transparent hover:bg-white/10 hover:text-gray-200" },
-  { label: "Heartwarming", emoji: "🥰", activeClass: "bg-pink-500/20 text-pink-300 border-pink-500/60 shadow-pink-500/20", inactiveClass: "bg-white/5 text-gray-400 border-transparent hover:bg-white/10 hover:text-gray-200" },
-] as const;
-
-type ToneLabel = (typeof TONES)[number]["label"];
-
-interface ICharacter {
-  id: string;
-  name: string;
-  role: string;
-  personality: string;
-}
-
-// Helper function
-const getStoryDedupKey = (story: IStories) => {
-  const storyData = story as Partial<IStories> & {
-    id?: string;
-    _id?: string;
-    uuid?: string;
-  };
-  const title = String(storyData.title ?? "").trim().toLowerCase();
-  const content = String(storyData.content ?? "").trim().toLowerCase();
-  const tag = String(storyData.tag ?? "").trim().toLowerCase();
-
-  return title || content || tag
-    ? `${title}-${content}-${tag}`
-    : String(storyData.uuid ?? storyData._id ?? storyData.id ?? "");
-};
-
-const getUniqueStories = (storyList: IStories[]) => {
-  const seenStories = new Set<string>();
-
-  return storyList.filter((story) => {
-    const dedupKey = getStoryDedupKey(story);
-
-    if (!dedupKey) return true;
-    if (seenStories.has(dedupKey)) return false;
-
-    seenStories.add(dedupKey);
-    return true;
-  });
-};
+const lengths = ["short", "medium", "long"] as const;
 
 const StoriesComponent = () => {
-  const [currentPage, setCurrentPage] = useState(1);
-  const storiesPerPage = 10;
   const location = useLocation();
-  const navigate = useNavigate();
-  const { register, handleSubmit, reset, setValue } = useForm<Inputs>();
-
-  const draft = useMemo(() => {
-    try {
-      const saved = localStorage.getItem("story_spark_draft");
-      return saved ? JSON.parse(saved) : null;
-    } catch {
-      return null;
-    }
-  }, []);
-
-  const [stories, setStories] = useState<IStories[]>(
-    draft?.stories?.length ? getUniqueStories(draft.stories) : []
-  );
-  
+const navigate = useNavigate();
+const { register, handleSubmit, reset, setValue } = useForm<Inputs>();
+  const [stories, setStories] = useState<IStories[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
-  const [searchQuery, setSearchQuery] = useState<string>("");
-  const [searchFilter, setSearchFilter] = useState<string>("all");
-
-  const uniqueStories = useMemo(() => getUniqueStories(stories), [stories]);
-
-  const debouncedSearchQuery = useDebounce(searchQuery, 350);
-
-  const filteredStories = useMemo(() => {
-    if (!debouncedSearchQuery.trim()) return uniqueStories;
-    const query = debouncedSearchQuery.toLowerCase();
-    
-    return uniqueStories.filter((story) => {
-      switch (searchFilter) {
-        case "title":
-          return story.title?.toLowerCase().includes(query);
-        case "content":
-          return story.content?.toLowerCase().includes(query);
-        case "genre":
-          return story.tag?.toLowerCase().includes(query);
-        case "all":
-        default:
-          return (
-            story.title?.toLowerCase().includes(query) ||
-            story.content?.toLowerCase().includes(query) ||
-            story.tag?.toLowerCase().includes(query)
-          );
-      }
-    });
-  }, [uniqueStories, debouncedSearchQuery, searchFilter]);
-
-  const indexOfLastStory = currentPage * storiesPerPage;
-  const indexOfFirstStory = indexOfLastStory - storiesPerPage;
-
-  const currentStories = useMemo(() => {
-    return filteredStories.slice(indexOfFirstStory, indexOfLastStory);
-  }, [filteredStories, indexOfFirstStory, indexOfLastStory]);
-
-  const totalPages = useMemo(() => {
-    return Math.ceil(filteredStories.length / storiesPerPage);
-  }, [filteredStories.length, storiesPerPage]);
-
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [debouncedSearchQuery, searchFilter]);
-
   const { data } = useGetProfileInfoQuery(undefined);
   const userRole = getUserInfo();
+  const subscriptionType = (userRole?.subscriptionType as string) || "free";
   const login = isLoggedIn();
   const [generateModel] = useGenerateModelMutation();
   const [generateFreeModel] = useGenerateFreeModelMutation();
   const [selectedPrompt, setSelectedPrompt] = useState<string>("");
   const [showHelpModal, setShowHelpModal] = useState(false);
-  const [selectedGenre, setSelectedGenre] = useState<string>(
-    draft?.genre
-      ? (GENRES.find((g) => g.name === draft.genre || g.value === draft.genre)?.value ?? "🧙 Fantasy")
-      : "🧙 Fantasy"
-  );
-  const [selectedLength, setSelectedLength] = useState<string>(draft?.length || "medium");
-  const [selectedTone, setSelectedTone] = useState<ToneLabel | "">(draft?.tone || "Dramatic");
-  const [textareaValue, setTextareaValue] = useState<string>(location.state?.prompt || draft?.prompt || "");
-  const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
-  const [selectedLanguage, setSelectedLanguage] = useState<string>(draft?.language || "English");
-  const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState<boolean>(false);
-  const [currentStep, setCurrentStep] = useState<1 | 2>(1);
-  const [characters, setCharacters] = useState<ICharacter[]>([]);
+const [selectedGenre, setSelectedGenre] = useState<string>("");
+const [selectedLength, setSelectedLength] = useState<string>("medium");
+const [textareaValue, setTextareaValue] = useState<string>("");
+const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
+const dropdownRef = useRef<HTMLDivElement>(null);
+const inputRef = useRef<HTMLTextAreaElement>(null);
+const [guestRequestCount, setGuestRequestCount] = useState<number>(() =>
+  parseInt(localStorage.getItem("guestRequestCount") || "0", 10),
+);
+const [showLimitModal, setShowLimitModal] = useState<boolean>(false);
 
-  const dropdownRef = useRef<HTMLDivElement>(null);
-  const languageDropdownRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLTextAreaElement>(null);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  
-  const [guestRequestCount, setGuestRequestCount] = useState<number>(() =>
-    parseInt(localStorage.getItem("guestRequestCount") || "0", 10)
-  );
-  const [showLimitModal, setShowLimitModal] = useState<boolean>(false);
-  const [isRecentPromptsOpen, setIsRecentPromptsOpen] = useState<boolean>(false);
-  const { recentPrompts, addPrompt, removePrompt, clearAll } = useRecentPrompts();
-  const text = UI_TEXT[selectedLanguage] ?? UI_TEXT.English;
-  const genreLabels = GENRE_LABELS[selectedLanguage] ?? GENRE_LABELS.English;
+useEffect(() => {
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}, []);
 
-  const activeGenerationRef = useRef<{ abort: () => void } | null>(null);
-  const isGenerationInProgressRef = useRef(false);
+useEffect(() => {
+  const handleClickOutside = (event: MouseEvent) => {
+    if (
+      dropdownRef.current &&
+      !dropdownRef.current.contains(event.target as Node)
+    ) {
+      setIsDropdownOpen(false);
+    }
+  };
+
+
+  const handleKeyDown = (event: KeyboardEvent) => {
+    if (event.key === "Escape") {
+      setIsDropdownOpen(false);
+
+  const StoriesViewComponent: React.FC<StoriesComponentProps> = ({
+    stories,
+    isLogin,
+    setStories,
+    isLoading,
+    onPublishSuccess,
+  }) => {
+    const location = useLocation();
+    const navigate = useNavigate();
+    const { register, handleSubmit, reset, setValue, formState: { isSubmitting } } = useForm<Inputs>();
+    const [stories, setStories] = useState<IStories[]>([]);
+    const [loading, setLoading] = useState<boolean>(false);
+    const { data } = useGetProfileInfoQuery(undefined);
+    const userRole = getUserInfo();
+    const subscriptionType = (userRole?.subscriptionType as string) || "free";
+    const login = isLoggedIn();
+    const [showUpgradeModal, setShowUpgradeModal] = useState<boolean>(false);
+    const { data: usageData, refetch: refetchUsage } = useGetUsageQuery(undefined, { skip: !login });
+    const [generateModel] = useGenerateModelMutation();
+    const [generateFreeModel] = useGenerateFreeModelMutation();
+    const [selectedPrompt, setSelectedPrompt] = useState<string>("");
+    const [showHelpModal, setShowHelpModal] = useState(false);
+    const [selectedGenre, setSelectedGenre] = useState<string>("");
+    const [selectedLength, setSelectedLength] = useState<string>("medium");
+    const [textareaValue, setTextareaValue] = useState<string>("");
+    const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
+    const { data: rosterData } = useGetCharactersQuery(undefined, { skip: !login });
+    const rosterCharacters = rosterData?.data || [];
+    const [saveCharacter, { isLoading: isSavingCharacter }] = useSaveCharacterMutation();
+    const [selectedRosterCharacterId, setSelectedRosterCharacterId] =
+      useState<string>("");
+    const selectedRosterCharacter = rosterCharacters.find(
+      (character) => character._id === selectedRosterCharacterId
+    );
+
+    const handleSaveToRoster = async (char: ICharacter) => {
+      try {
+        await saveCharacter({
+          name: char.name,
+          role: char.role,
+          personality: char.personality
+        }).unwrap();
+        toast.success("Character saved to roster!");
+      } catch (error) {
+        toast.error("Failed to save character.");
+      }
+    };
+
+    const handleLoadFromRoster = (
+      charId: string,
+      rosterCharId: string
+    ) => {
+      const rosterChar = rosterCharacters.find(
+        (character) => character._id === rosterCharId
+      );
+
+      if (!rosterChar) return;
+
+      setSelectedRosterCharacterId(rosterCharId);
+
+      if (typeof setCharacters === "function") {
+        setCharacters((prev: ICharacter[]) =>
+          prev.map((character) =>
+            character.id === charId
+              ? {
+                ...character,
+                name: rosterChar.name,
+                role: rosterChar.role || "",
+                personality: rosterChar.personality,
+              }
+              : character
+          )
+        );
+      }
+    };
+    const dropdownRef = useRef<HTMLDivElement>(null);
+    const inputRef = useRef<HTMLTextAreaElement>(null);
+    const [guestRequestCount, setGuestRequestCount] = useState<number>(() =>
+      parseInt(localStorage.getItem("guestRequestCount", 10) || "0", 10),
+    );
+    const [showLimitModal, setShowLimitModal] = useState<boolean>(false);
+
+    useEffect(() => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }, []);
+
+    useEffect(() => {
+      const handleClickOutside = (event: MouseEvent) => {
+        if (
+          dropdownRef.current &&
+          !dropdownRef.current.contains(event.target as Node)
+        ) {
+          setIsDropdownOpen(false);
+        }
+      };
+
+      const handleKeyDown = (event: KeyboardEvent) => {
+        if (event.key === "Escape") {
+          setIsDropdownOpen(false);
+
+          const [selectedGenre, setSelectedGenre] = useState<string>(
+
+            draft?.genre
+              ? (GENRES.find((g) => g.name === draft.genre || g.value === draft.genre)?.value ?? "≡ƒºÖ Fantasy")
+              : "≡ƒºÖ Fantasy",
+          );
+
+          const [selectedLength, setSelectedLength] = useState<string>(draft?.length || "medium");
+          const [selectedTone, setSelectedTone] = useState<ToneLabel | "">(draft?.tone || "Dramatic");
+          const [selectedAudience, setSelectedAudience] = useState<string>("General Audience");
+          const [textareaValue, setTextareaValue] = useState<string>(() => {
+            return location.state?.prompt || draft?.prompt || "";
+          });
+
+          const [showTemplateScreen, setShowTemplateScreen] = useState<boolean>(() => {
+            return !location.state?.prompt && !draft?.prompt;
+          });
+
+          const handleSelectTemplate = (template: any) => {
+            const fullPremise = `${template.premise}\n\nSuggested Plot Points:\n- ${template.plotPoints.join('\n- ')}`;
+            setTextareaValue(fullPremise);
+            setSelectedGenre(template.genre);
+            setSelectedLength(template.length);
+            setCharacters(template.characters);
+            setShowTemplateScreen(false);
+          };
+
+          const handleStartBlank = () => {
+            setShowTemplateScreen(false);
+          };
+
+
+          const [isDropdownOpen, setIsDropdownOpen] = useState<boolean>(false);
+          const [selectedLanguage, setSelectedLanguage] = useState<string>("English");
+          const [isLanguageDropdownOpen, setIsLanguageDropdownOpen] = useState<boolean>(false);
+
+
+
 
   const playSoundtrack = useCallback((genre: string) => {
     const soundtrack = soundtrackMap[genre];
     if (!soundtrack) return;
-
     if (audioRef.current) {
       audioRef.current.pause();
       audioRef.current.currentTime = 0;
-    }
-
-    const audio = new Audio(soundtrack);
-    audio.loop = true;
-    audio.volume = 0.3;
-    audio.play().catch((err) => {
-      console.log("Audio playback failed:", err);
-    });
-    audioRef.current = audio;
-  }, []);
-
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }, []);
-
-  // Autosave Draft
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      const draftData = {
-        prompt: textareaValue,
-        genre: selectedGenre,
-        length: selectedLength,
-        language: selectedLanguage,
-        tone: selectedTone,
-      };
-      try {
-        localStorage.setItem("story_spark_draft", JSON.stringify(draftData));
-      } catch (err) {
-        if (err instanceof DOMException && err.name === "QuotaExceededError") {
-          toast.error("Couldn't autosave draft — storage limit reached.");
-        }
-      }
-    }, 1000);
-    return () => clearTimeout(timer);
-  }, [textareaValue, selectedGenre, selectedLength, selectedLanguage, selectedTone]);
-
-  useEffect(() => {
-    const selectedLocale =
-      LANGUAGES.find((language) => language.name === selectedLanguage)?.code ?? "en";
-    localStorage.setItem(LANGUAGE_STORAGE_KEY, selectedLanguage);
-    document.documentElement.lang = selectedLocale;
-  }, [selectedLanguage]);
-
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsDropdownOpen(false);
-      }
-      if (
-        languageDropdownRef.current &&
-        !languageDropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsLanguageDropdownOpen(false);
-      }
-    };
-
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setIsDropdownOpen(false);
-        setIsLanguageDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("keydown", handleKeyDown);
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, []);
-
-  useEffect(() => {
-    if (location.state) {
-      if (location.state.prompt) {
-        setTextareaValue(location.state.prompt);
-      }
-      if (location.state.genre) {
-        const matchedGenre = GENRES.find((g) => g.name === location.state.genre)?.value ?? "";
-        setSelectedGenre(matchedGenre);
-      }
-      navigate(location.pathname, {
-        replace: true,
-        state: {},
+      audioRef.current.src = soundtrack;
+      audioRef.current.play().catch(() => {
+        /* ignore autoplay restrictions */
       });
     }
-  }, [location, navigate]);
+  }, []); // audioRef is a stable ref — no deps needed
 
-  useEffect(() => {
-    return () => {
-      activeGenerationRef.current?.abort();
-    };
-  }, []);
+          const dropdownRef = useRef<HTMLDivElement>(null);
+          const languageDropdownRef = useRef<HTMLDivElement>(null);
+          const inputRef = useRef<HTMLTextAreaElement>(null);
+          const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  const handleCancelGeneration = useCallback((isTimeout = false) => {
-    activeGenerationRef.current?.abort();
-    activeGenerationRef.current = null;
-    isGenerationInProgressRef.current = false;
-    setLoading(false);
-    if (!isTimeout) {
-      toast("Story generation cancelled.");
-    }
-  }, []);
 
-  const handleClearPrompt = useCallback(() => {
-    setTextareaValue("");
-    setSelectedPrompt("");
-    setValue("prompt", "");
+          const playSoundtrack = (genre: string) => {
 
-    if (inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, [setValue]);
+            const soundtrack = soundtrackMap[genre];
 
-  const handlePublishSuccess = useCallback(() => {
-    setTextareaValue("");
-    setSelectedPrompt("");
-    setValue("prompt", "");
-    setCharacters([]);
-    setCurrentStep(1);
-    reset();
-  }, [setValue, reset]);
+            if (!soundtrack) return;
 
-  const handleNextStep = useCallback(() => {
-    if (!textareaValue.trim()) {
-      toast.error("Please enter a prompt to generate a story.");
-      return;
-    }
-    if (getWordCount(textareaValue) < 10) {
-      toast.error("Please enter a prompt with at least 10 words to generate a story.");
-      return;
-    }
-    setCurrentStep(2);
-  }, [textareaValue]);
+            if (audioRef.current) {
+              audioRef.current.pause();
+              audioRef.current.currentTime = 0;
+              audioRef.current.src = soundtrack;
+              audioRef.current.play().catch(() => {
+                /* ignore autoplay restrictions */
+              });
+            }
+          }, []);
 
-  const generateId = () => Math.random().toString(36).substring(2, 9);
+    const [isCopied, setIsCopied] = useState<boolean>(false);
+    const [showWorldMap, setShowWorldMap] = useState<boolean>(false);
+    const [, setShowRemix] = useState<boolean>(false);
+    const [createPost] = useCreatePostMutation();
+    const [deletePost] = useDeletePostMutation();
+    const { data: profile } = useGetProfileInfoQuery(undefined, { skip: !isLogin });
+    const lastSavedContentRef = useRef<string>("");
+    const isSavingRef = useRef<boolean>(false);
+    const hasSavedSessionRef = useRef<boolean>(false);
+    const savedPostIdRef = useRef<string | null>(null);
+    // Alternate ending state & hooks
+    const [endingsCache, setEndingsCache] = useState<{
+      [uuid: string]: { style: string; ending: string; fullStory: string }[];
+    }>({});
+    const [originalStoryContent, setOriginalStoryContent] = useState<{
+      [uuid: string]: string;
+    }>({});
+    const [isGeneratingEndings, setIsGeneratingEndings] = useState<boolean>(false);
+    const [activeEndingTab, setActiveEndingTab] = useState<string>("Happy Ending");
+    const [narrationWordIndex, setNarrationWordIndex] = useState<number>(0);
+    const [narrationState, setNarrationState] = useState<NarrationPlaybackState>("idle");
 
-  const handleAddCharacter = () => {
-    setCharacters([
-      ...characters,
-      { id: generateId(), name: "", role: "Protagonist", personality: "" },
-    ]);
-  };
+    const [generateAlternateEndings] = useGenerateAlternateEndingsMutation();
+    const [generateFreeAlternateEndings] = useGenerateFreeAlternateEndingsMutation();
 
-  const handleCharacterChange = (id: string, field: keyof Omit<ICharacter, "id">, value: string) => {
-    setCharacters(
-      characters.map((char) => (char.id === id ? { ...char, [field]: value } : char))
+    useEffect(() => {
+      if (selectedStory && !originalStoryContent[selectedStory.uuid]) {
+        setOriginalStoryContent((prev) => ({
+          ...prev,
+          [selectedStory.uuid]: selectedStory.content,
+        }));
+      }
+    }, [selectedStory, originalStoryContent]);
+
+    useEffect(() => {
+      if (narrationState === "playing") {
+        const activeWordElement = document.querySelector('[data-active-word="true"]');
+        if (activeWordElement) {
+          activeWordElement.scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+            inline: "nearest"
+          });
+        }
+      }
+    }, [narrationWordIndex, narrationState]);
+
+    const activeGenerationRef = useRef<{ abort: () => void } | null>(null);
+    const isGenerationInProgressRef = useRef(false);
+
+    const [guestRequestCount, setGuestRequestCount] = useState<number>(() =>
+      parseInt(localStorage.getItem("guestRequestCount", 10) || "0", 10)
     );
-  };
+    const [showLimitModal, setShowLimitModal] = useState<boolean>(false);
+    const [isRecentPromptsOpen, setIsRecentPromptsOpen] = useState<boolean>(false);
+    const [isHighLatency, setIsHighLatency] = useState<boolean>(false);
+    const { recentPrompts, addPrompt, removePrompt, clearAll } = useRecentPrompts();
 
-  const handleRemoveCharacter = (id: string) => {
-    setCharacters(characters.filter((char) => char.id !== id));
-  };
+    const text = UI_TEXT[selectedLanguage] ?? UI_TEXT.English;
+    const genreLabels = GENRE_LABELS[selectedLanguage] ?? GENRE_LABELS.English;
 
-  const onSubmit: SubmitHandler<Inputs> = useCallback(async (data) => {
-    if (isGenerationInProgressRef.current) {
+    useEffect(() => {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }, []);
+
+    const handleGenerateAlternateEndings = async () => {
+      if (!selectedStory) return;
+      setIsGeneratingEndings(true);
+      const toastId = toast.loading("Generating alternate endings...");
+      try {
+        const payload = {
+          title: selectedStory.title,
+          content: originalStoryContent[selectedStory.uuid] || selectedStory.content,
+          tag: selectedStory.tag,
+
+          language: selectedStory.language || "English",
+
+        };
+
+        const generationRequest = isLogin
+          ? generateAlternateEndings(payload)
+          : generateFreeAlternateEndings(payload);
+
+        const res = await generationRequest.unwrap();
+        if (res && res.data) {
+          setEndingsCache((prev) => ({
+            ...prev,
+            [selectedStory.uuid]: res.data,
+          }));
+          toast.success("Alternate endings generated successfully!");
+        } else {
+          toast.error("Failed to generate alternate endings.");
+        }
+      } catch (error) {
+        console.error(error);
+        toast.error("Failed to generate alternate endings. Please try again.");
+      } finally {
+        toast.dismiss(toastId);
+        setIsGeneratingEndings(false);
+      }
+    };
+
+    const handleApplyEnding = (endingData: { style: string; ending: string; fullStory: string }) => {
+      if (!selectedStory) return;
+      const updatedStory = {
+        ...selectedStory,
+        content: endingData.fullStory,
+      };
+      setSelectedStory(updatedStory);
+      setStories(
+        stories.map((s) => (s.uuid === selectedStory.uuid ? updatedStory : s))
+      );
+      toast.success(`${endingData.style} applied to story!`);
+    };
+
+    const handleResetEnding = () => {
+      if (!selectedStory) return;
+      const originalContent = originalStoryContent[selectedStory.uuid];
+      if (!originalContent) return;
+      const updatedStory = {
+        ...selectedStory,
+        content: originalContent,
+      };
+      setSelectedStory(updatedStory);
+      setStories(
+        stories.map((s) => (s.uuid === selectedStory.uuid ? updatedStory : s))
+      );
+      toast.success("Reverted to original story ending!");
+    };
+
+    const [isPlayingAudio, setIsPlayingAudio] = useState<boolean>(false);
+    const [isPausedAudio, setIsPausedAudio] = useState<boolean>(false);
+
+    // Draft restore + autosave
+    useEffect(() => {
+      if (!textareaValue.trim()) {
+        return;
+      }
+
+      const timer = setTimeout(() => {
+        const draftData: StoryDraftData = {
+          prompt: textareaValue,
+          genre: selectedGenre,
+          length: selectedLength,
+          language: selectedLanguage,
+          tone: selectedTone,
+          savedAt: new Date().toISOString(),
+        };
+
+        try {
+          saveStoryDraft(draftData);
+          setDraftStatus(`Draft saved ${new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`);
+        } catch (err) {
+          if (err instanceof DOMException && err.name === "QuotaExceededError") {
+
+            toast.error("Couldn't autosave draft ├óΓé¼ΓÇ¥ storage limit reached.");
+          }
+
+        }
+      }, 1000);
+      return () => clearTimeout(timer);
+    }, [textareaValue, selectedGenre, selectedLength, selectedLanguage, selectedTone]);
+
+
+
+    if (!("speechSynthesis" in window)) {
+      toast.error("Text-to-speech is not supported in this browser.");
       return;
     }
+  };
 
+  document.addEventListener("mousedown", handleClickOutside);
+  document.addEventListener("keydown", handleKeyDown);
+
+  return () => {
+    document.removeEventListener("mousedown", handleClickOutside);
+    document.removeEventListener("keydown", handleKeyDown);
+  };
+}, []);
+
+useEffect(() => {
+  if (location.state && location.state.prompt) {
+    setTextareaValue(location.state.prompt);
+    navigate(location.pathname, { replace: true, state: {} });
+  }
+}, [location, navigate]);
+
+useEffect(() => {
+  setValue("prompt", textareaValue);
+}, [textareaValue, setValue]);
+
+  const onSubmit: SubmitHandler<Inputs> = async (data) => {
     if (!login && guestRequestCount >= 3) {
       setShowLimitModal(true);
       return;
     }
 
-    if (!data.prompt.trim()) {
+    if (data.prompt === "") {
       toast.error("Please enter a prompt to generate a story.");
       return;
     }
-
     if (getWordCount(data.prompt) < 10) {
-      toast.error("Please enter a prompt with at least 10 words to generate a story.");
+      toast.error(
+        "Please enter a prompt with at least 10 words to generate a story.",
+      );
       return;
     }
-
-    // Validate characters array
-    for (const char of characters) {
-      if (!char.name.trim()) {
-        toast.error("Please provide a name for all characters.");
-        return;
-      }
-      if (!char.role.trim()) {
-        toast.error("Please select a role for all characters.");
-        return;
-      }
-      if (!char.personality.trim()) {
-        toast.error("Please describe the personality/traits for all characters.");
-        return;
-      }
-    }
-
-    isGenerationInProgressRef.current = true;
     setLoading(true);
 
-    let timeoutId: NodeJS.Timeout | null = null;
-
     try {
-      timeoutId = setTimeout(() => {
-        if (isGenerationInProgressRef.current) {
-          toast.error("Story generation timed out. Please try again.");
-          handleCancelGeneration(true);
-        }
-      }, 60000);
-
       const payload = {
         prompt: selectedGenre
           ? `[Genre: ${selectedGenre}] ${data.prompt}`
           : data.prompt,
         wordLength:
-          selectedLength === "short"
-            ? 175
-            : selectedLength === "long"
-            ? 800
-            : 450,
-        language: selectedLanguage,
-        tone: selectedTone || undefined,
-        characters: characters.map(({ name, role, personality }) => ({ name, role, personality })),
+          selectedLength === "short" ? 150
+          : selectedLength === "long" ? 500
+          : 250,
       };
-      const generationRequest = login
-        ? generateModel(payload)
-        : generateFreeModel(payload);
-
-      activeGenerationRef.current = generationRequest;
-      const res = await generationRequest.unwrap();
+      const res = login
+        ? await generateModel(payload).unwrap()
+        : await generateFreeModel(payload).unwrap();
       if (res) {
         toast.success(res.message);
-        addPrompt(data.prompt);
-        setStories(getUniqueStories(res.data as IStories[]));
-        setTextareaValue("");
+        setStories(res.data as IStories[]);
         setSelectedPrompt("");
         setValue("prompt", "");
-        localStorage.removeItem("story_spark_draft");
-        if (selectedGenre) {
-          playSoundtrack(selectedGenre);
-        }
         reset();
-        setCharacters([]);
-        setCurrentStep(1);
         if (!login) {
           const newCount = guestRequestCount + 1;
           setGuestRequestCount(newCount);
           localStorage.setItem("guestRequestCount", String(newCount));
         }
-        window.scrollTo({ top: 0, behavior: 'smooth' });
       }
     } catch (error: unknown) {
-      const message = getErrorMessage(error);
-      if (message !== "Story generation was cancelled.") {
-        toast.error(message);
-      }
+      toast.error(getErrorMessage(error));
     } finally {
-      if (timeoutId) {
-        clearTimeout(timeoutId);
-      }
-      activeGenerationRef.current = null;
-      isGenerationInProgressRef.current = false;
       setLoading(false);
     }
-  }, [
-    login,
-    guestRequestCount,
-    characters,
-    selectedGenre,
-    selectedLength,
-    selectedLanguage,
-    selectedTone,
-    generateModel,
-    generateFreeModel,
-    addPrompt,
-    setValue,
-    playSoundtrack,
-    handleCancelGeneration,
-    reset,
-  ]);
+  };
+
+const handleClearPrompt = () => {
+  setTextareaValue("");
+  setSelectedPrompt("");
+  setValue("prompt", "");
+
+  if (inputRef.current) {
+    inputRef.current.focus();
+  }
+};
 
   const isOverLimit = textareaValue.length >= MAX_PROMPT_LENGTH;
   const isNearLimit = textareaValue.length >= MAX_PROMPT_LENGTH * WARN_THRESHOLD;
-  const isGenerateDisabled = loading || isOverLimit || !textareaValue.trim();
-
-  const handleOpenHelp = useCallback(() => setShowHelpModal(true), []);
-  const handleCloseHelp = useCallback(() => setShowHelpModal(false), []);
-  const handleGenerateShortcut = useCallback(() => {
-    if (isGenerateDisabled) {
-      return;
-    }
+  
+  useKeyboardShortcuts({
+  onOpenHelp: () => setShowHelpModal(true),
+  onCloseHelp: () => setShowHelpModal(false),
+  onGenerate: () => {
     if (inputRef.current) {
       const form = inputRef.current.closest("form");
       if (form) form.requestSubmit();
     }
-  }, [isGenerateDisabled]);
-  const handlePublishShortcut = useCallback(() => {
+  },
+  onPublish: () => {
     const publishBtn = document.getElementById("publish-story-btn");
     publishBtn?.click();
-  }, []);
-  const handleFocusPrompt = useCallback(() => {
+  },
+  focusPrompt: () => {
     inputRef.current?.focus();
-  }, []);
-
-  useKeyboardShortcuts({
-    onOpenHelp: handleOpenHelp,
-    onCloseHelp: handleCloseHelp,
-    onGenerate: handleGenerateShortcut,
-    onPublish: handlePublishShortcut,
-    focusPrompt: handleFocusPrompt,
-    hasStory: stories.length > 0,
-  });
-
-  const handleSelectRecentPrompt = useCallback((prompt: string) => {
-    setTextareaValue(prompt);
-    setValue("prompt", prompt);
-    setIsRecentPromptsOpen(false);
-  }, [setValue]);
-
-  const handleToggleRecentPrompts = useCallback(() => {
-    setIsRecentPromptsOpen((prev) => !prev);
-  }, []);
-
-  const handleToggleDropdown = useCallback(() => {
-    setIsDropdownOpen((prev) => !prev);
-  }, []);
-
-  const recentPromptsText = useMemo(() => ({
-    recentPrompts: text.recentPrompts,
-    usePrompt: text.usePrompt,
-    delete: text.delete,
-    clearAll: text.clearAll,
-    noRecentPrompts: text.noRecentPrompts,
-    close: text.close,
-  }), [text]);
-
+  },
+  hasStory: stories.length > 0,
+});
   return (
-    <div className="min-h-screen bg-white text-slate-900 animate-gradient-slow transition-colors duration-300 dark:bg-[#0b1329] dark:text-white">
-      <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 pb-32">
-        <div className="py-6 grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+    <div className="bg-gradient-to-br animate-gradient-slow min-h-screen relative overflow-x-hidden">
+      <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="py-6 flex flex-col md:flex-row items-center md:items-start justify-between gap-4">
           <div className="pt-2 w-full md:w-auto flex justify-start">
             <Link to="/">
-              <div className="!rounded-button bg-gray-100/80 hover:bg-gray-200/80 text-slate-900 dark:bg-white/20 dark:hover:bg-white/30 dark:text-gray-300 px-3 py-2 flex items-center gap-2 transition-all duration-300 rounded whitespace-nowrap border border-gray-200 dark:border-white/10">
-                <i className="fa-solid fa-left-long"></i> {text.back}
+              <div className="!rounded-button bg-gradient-to-r from-white/20 to-white/10 hover:from-white/30 hover:to-white/20 text-gray-300 px-3 py-2 flex items-center gap-2 transition-all duration-300 rounded whitespace-nowrap">
+                <i className="fa-solid fa-left-long"></i> BACK
               </div>
             </Link>
           </div>
 
           {!login && (
             <div className="pt-2 text-center">
-              <div className="!rounded-button bg-gray-100/80 text-slate-600 px-3 py-2 flex items-center gap-2 transition-all duration-300 rounded text-sm whitespace-normal md:whitespace-nowrap leading-relaxed border border-gray-200 dark:bg-white/20 dark:text-gray-400 dark:border-white/10">
+              <div className="!rounded-button bg-gradient-to-r from-white/20 to-white/10 text-gray-400 px-3 py-2 flex items-center gap-2 transition-all duration-300 rounded text-sm whitespace-normal md:whitespace-nowrap leading-relaxed">
                 <span>
-                  {text.freeAccess} -{" "}
-                  <Link to="/login">
-                    <span className="text-indigo-400 underline font-semibold">
-                      {text.login}
-                    </span>
-                  </Link>{" "}
-                  {text.forMore}
+                  Free access for 3 requests — <Link to="/login"><span className="text-indigo-400 underline font-semibold">Login</span></Link> for more!
                 </span>
               </div>
             </div>
           )}
 
-          <div className="bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-800/50 dark:to-slate-900/50 rounded-2xl p-4 border border-slate-200 dark:border-white/10 shadow-md w-full">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <i className="fas fa-gem text-purple-500 text-sm"></i>
-                <span className="text-xs font-medium text-slate-600 dark:text-slate-400">{text.perMonth}</span>
-                <span className="text-sm font-bold text-slate-800 dark:text-white">{getRequestLimit(userRole?.subscriptionType as string)}</span>
-              </div>
-              <Link to="/pricing" className="flex items-center gap-1.5 px-3 py-1.5 bg-gradient-to-r from-amber-500 to-orange-500 rounded-lg text-white text-xs font-bold shadow-md hover:shadow-lg transition-all">
-                <i className="fas fa-bolt text-yellow-200 text-[10px]"></i>
-                {text.upgrade}
+          <div className="flex flex-col items-center md:items-end pt-2 w-full md:w-auto">
+            <button className="!rounded-button bg-gradient-to-r from-white/20 to-white/10 hover:from-white/30 hover:to-white/20 text-gray-300 px-3 py-2 flex items-center gap-2 transition-all duration-300 rounded whitespace-nowrap">
+              <span>
+                <span className="text-gray-400 text-xs mr-1">Per Month</span>
+                {getRequestLimit(subscriptionType)}
+              </span>
+              <Link to="/pricing" className="border-1 border-white/20 pl-2 text-gray-300">
+               Upgrade
               </Link>
-            </div>
-            
-            <div className="mt-3 pt-3 border-t border-slate-200 dark:border-white/10">
-              <div className="flex justify-between items-center text-xs mb-2">
-                <span className="text-slate-500 dark:text-slate-400">{text.monthlyRequests}:</span>
-                <span className="font-semibold text-slate-700 dark:text-white">{login ? (data?.requestsThisMonth ?? 0) : guestRequestCount} / 3</span>
-              </div>
-              <div className="flex justify-between items-center text-xs">
-                <span className="text-slate-500 dark:text-slate-400">{text.totalPosts}:</span>
-                <span className="font-semibold text-slate-700 dark:text-white">{login ? (data?.postsCount ?? 0) : 0}</span>
-              </div>
+              
+              <i className="fas fa-bolt text-yellow-400"></i>
+            </button>
+            <div className="mt-3 text-gray-500 text-xs text-center md:text-right">
+              <span>
+                This month request:{" "}
+                {login ? (data?.requestsThisMonth ?? 0) : guestRequestCount}
+              </span>
+              <br />
+              <span>Total posts: {login ? (data?.postsCount ?? 0) : 0}</span>
             </div>
           </div>
         </div>
 
         <div className="mt-11">
-          <div className="mb-12 max-w-3xl mx-auto text-center select-none">
-            <h1 className="text-2xl sm:text-4xl font-extrabold text-slate-900 dark:text-white tracking-tight leading-tight">
-              ✨ {text.titleStart}{" "}
-              <span className="bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
-                {text.titleAccent}
-              </span> ✨
-            </h1>
-          </div>
+          <h1 className="text-gray-300 text-2xl sm:text-3xl md:text-4xl font-extrabold text-center mb-12">
+            ✨ Turn Your Ideas Into{" "}
+            <span className="bg-clip-text text-transparent bg-gradient-to-r from-purple-300 to-blue-400">
+              Amazing Stories!
+            </span>{" "}
+            ✨
+          </h1>
 
-          <div className="max-w-3xl mx-auto w-full box-border space-y-6">
-            <div className="bg-white dark:bg-[#111827]/40 backdrop-blur-xl border border-slate-200 dark:border-white/10 rounded-2xl sm:rounded-3xl p-5 sm:p-7 shadow-sm hover:shadow-xl transition-shadow duration-300 w-full box-border">
-              <form className="space-y-6 w-full box-border" onSubmit={handleSubmit(onSubmit)}>
-                {currentStep === 1 ? (
-                  <>
-                    {/* Step 1 Content */}
-                    <div className="w-full box-border select-none">
-                      <div className="flex flex-wrap gap-2">
-                        {GENRES.map((genre) => (
-                          <button
-                            key={genre.value}
-                            type="button"
-                            onClick={() => {
-                              const newGenre = selectedGenre === genre.value ? "" : genre.value;
-                              setSelectedGenre(newGenre);
-                              if (newGenre) {
-                                playSoundtrack(newGenre);
-                              } else if (audioRef.current) {
-                                audioRef.current.pause();
-                                audioRef.current.currentTime = 0;
-                              }
-                            }}
-                            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold tracking-wide uppercase border transition-all duration-150 cursor-pointer active:scale-[0.97] ${
-                              selectedGenre === genre.value
-                                ? "bg-gradient-to-r from-blue-600 to-indigo-600 border-transparent text-white shadow-md shadow-blue-500/10"
-                                : "bg-slate-50 border-slate-200/60 text-slate-600 hover:bg-slate-100 dark:bg-white/5 dark:border-white/5 dark:text-slate-400 dark:hover:bg-white/10 dark:hover:text-slate-200"
-                            }`}
-                          >
-                            <span className="mr-1">{genre.icon}</span>
-                            <span>{genreLabels[genre.name]}</span>
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+          <div className="max-w-3xl mx-auto px-4 sm:px-0">
+            <div className="bg-blue-500/10 rounded-md p-4 border border-gray-400">
+<div className="relative">
+  <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
+    <div className="flex flex-wrap gap-2 mb-3">
+      {[
+        "🎭 Drama",
+        "😂 Comedy",
+        "😱 Horror",
+        "💕 Romance",
+        "🚀 Sci-Fi",
+        "🧙 Fantasy",
+        "🔍 Mystery",
+        "🌟 Adventure",
+      ].map((genre) => (
+        <button
+          key={genre}
+          type="button"
+          onClick={() =>
+            setSelectedGenre(selectedGenre === genre ? "" : genre)
+          }
+          className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 ${
+            selectedGenre === genre
+              ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/30"
+              : "bg-white/10 text-gray-400 hover:bg-white/20 hover:text-gray-200"
+          }`}
+        >
+          {genre}
+        </button>
+      ))}
+    </div>
 
-                    {/* Tone picker row */}
-                    <div className="pt-2 border-t border-slate-100 dark:border-white/5 select-none">
-                      <div className="flex flex-wrap gap-2 mb-6">
-                        <span className="w-full text-xs text-gray-400 mb-1">🎭 Tone:</span>
-                        {TONES.map((tone) => {
-                          const isActive = selectedTone === tone.label;
-                          return (
-                            <button
-                              key={tone.label}
-                              type="button"
-                              onClick={() => setSelectedTone(isActive ? "" : tone.label)}
-                              aria-pressed={isActive}
-                              className={`px-3 py-1 rounded-full text-xs font-medium border transition-all duration-200 ${
-                                isActive
-                                  ? `${tone.activeClass} shadow-md scale-105`
-                                  : tone.inactiveClass
-                              }`}
-                            >
-                              {tone.emoji} {tone.label}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
+    <div className="flex flex-wrap items-center gap-2 mb-3">
+      <span className="text-xs text-gray-400 mr-1">📏 Length:</span>
 
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-2 border-t border-slate-100 dark:border-white/5 w-full box-border select-none">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <span className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mr-1">📏 {text.length}:</span>
-                        {(["short", "medium", "long"] as const).map((length) => (
-                          <button
-                            key={length}
-                            type="button"
-                            onClick={() => setSelectedLength(length)}
-                            className={`px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wide border transition-all duration-150 cursor-pointer ${
-                              selectedLength === length
-                                ? "bg-blue-600 border-transparent text-white shadow-sm"
-                                : "bg-slate-50 border-slate-200/60 text-slate-500 hover:bg-slate-100 dark:bg-white/5 dark:border-white/5 dark:text-slate-400 dark:hover:bg-white/10"
-                            }`}
-                          >
-                            {text[length]}
-                          </button>
-                        ))}
-                      </div>
+      {lengths.map((length) => (
+        <button
+          key={length}
+          type="button"
+          onClick={() => setSelectedLength(length)}
+          className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 ${
+            selectedLength === length
+              ? "bg-indigo-500 text-white shadow-lg shadow-indigo-500/30"
+              : "bg-white/10 text-gray-400 hover:bg-white/20 hover:text-gray-200"
+          }`}
+        >
+          {length.charAt(0).toUpperCase() + length.slice(1)}
+        </button>
+      ))}
+    </div>
 
-                      <div className="flex items-center gap-2 ml-0 sm:ml-auto">
-                        <span className="text-xs text-gray-400 mr-1">🌐 {text.language}:</span>
-                        <div className="relative" ref={languageDropdownRef}>
-                          <button
-                            type="button"
-                            onClick={() => setIsLanguageDropdownOpen(!isLanguageDropdownOpen)}
-                            className="flex items-center gap-2 px-3.5 py-1.5 bg-slate-50 text-slate-600 border border-slate-200 dark:bg-white/5 dark:border-white/5 dark:text-slate-300 rounded-xl text-xs font-bold uppercase tracking-wider hover:bg-slate-100 dark:hover:bg-white/10 transition-all duration-150 cursor-pointer select-none"
-                          >
-                            <span>{LANGUAGES.find(l => l.name === selectedLanguage)?.name || "English"}</span>
-                            <span className="text-slate-400 dark:text-slate-500 text-[9px]">▼</span>
-                          </button>
+    <div className="relative">
+      <textarea
+  {...register("prompt")}
+  ref={(el) => {
+    register("prompt").ref(el);
+    inputRef.current = el;
+  }}
+        className={`w-full h-32 sm:h-40 resize-none border-none outline-none bg-transparent text-gray-300 focus:ring-0 text-lg leading-relaxed tracking-wide placeholder:italic placeholder:text-gray-500 pr-10 transition-colors duration-200 ${
+          isOverLimit
+            ? "ring-1 ring-red-500 rounded"
+            : isNearLimit
+            ? "ring-1 ring-yellow-400 rounded"
+            : ""
+        }`}
+        placeholder="Every great story begins with a single idea. What's yours?"
+        value={textareaValue}
+        maxLength={MAX_PROMPT_LENGTH}
+        onChange={(e) => setTextareaValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            const form = e.currentTarget.closest("form");
+            if (form) form.requestSubmit();
+          }
+        }}      
+        />
 
-                          {isLanguageDropdownOpen && (
-                            <ul className="absolute right-0 z-20 mt-1.5 max-h-48 w-40 overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl shadow-xl focus:outline-none divide-y divide-slate-100 dark:divide-white/5 p-1 box-border list-none m-0">
-                              {LANGUAGES.map((lang) => (
-                                <li key={lang.code} className="p-0 m-0 list-none">
-                                  <button
-                                    type="button"
-                                    onClick={() => {
-                                      setSelectedLanguage(lang.name);
-                                      setIsLanguageDropdownOpen(false);
-                                    }}
-                                    className={`w-full text-left px-3 py-2 text-xs font-semibold rounded-lg transition-colors duration-150 cursor-pointer ${
-                                      selectedLanguage === lang.name
-                                        ? "bg-blue-600 text-white font-bold"
-                                        : "text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white"
-                                    }`}
-                                  >
-                                    {lang.name}
-                                  </button>
-                                </li>
-                              ))}
-                            </ul>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+      {textareaValue.length > 0 && (
+        <button
+          type="button"
+          onClick={handleClearPrompt}
+          className="absolute right-2 top-2 text-gray-400 hover:text-red-500 transition-colors duration-200"
+          aria-label="Clear prompt"
+          title="Clear prompt"
+        >
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+      )}
 
-                    <div className="relative w-full">
-                      <div className="relative border border-slate-200/80 dark:border-white/10 bg-slate-50/50 dark:bg-slate-950/30 rounded-2xl p-4 transition-all focus-within:border-blue-500/30 focus-within:bg-white dark:focus-within:bg-[#111827]/20 w-full box-border">
-                        <textarea
-                          {...register("prompt")}
-                          ref={(el) => {
-                            register("prompt").ref(el);
-                            inputRef.current = el;
-                          }}
-                          className={`w-full h-32 sm:h-40 resize-none border-none outline-none bg-transparent text-slate-800 dark:text-slate-200 focus:ring-0 text-sm sm:text-base leading-relaxed placeholder:italic placeholder:text-slate-400 dark:placeholder:text-slate-500 pr-12 transition-colors duration-200 ${
-                            isOverLimit ? "ring-1 ring-red-500 rounded-lg p-2" : isNearLimit ? "ring-1 ring-yellow-400 rounded-lg p-2" : ""
-                          }`}
-                          placeholder={text.promptPlaceholder}
-                          value={textareaValue}
-                          maxLength={MAX_PROMPT_LENGTH}
-                          onChange={(e) => setTextareaValue(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && !e.shiftKey) {
-                              e.preventDefault();
-                              handleNextStep();
-                            }
-                          }}
-                        />
+      <div className="flex items-center justify-between mt-1 px-1">
+        {isOverLimit ? (
+          <p className="text-xs text-red-400 flex items-center gap-1">
+            <span>⚠</span> Character limit reached — generate is disabled
+          </p>
+        ) : isNearLimit ? (
+          <p className="text-xs text-yellow-400 flex items-center gap-1">
+            <span>⚠</span>{" "}
+            {MAX_PROMPT_LENGTH - textareaValue.length} characters remaining
+          </p>
+        ) : (
+          <span />
+        )}
 
-                        <div className="absolute right-3.5 top-3.5 flex flex-col gap-2.5">
-                          {textareaValue.length > 0 && (
-                            <button
-                              type="button"
-                              onClick={handleClearPrompt}
-                              className="w-7 h-7 flex items-center justify-center rounded-lg bg-white dark:bg-white/5 border border-slate-200 dark:border-white/10 text-slate-400 hover:text-red-500 dark:hover:text-red-400 shadow-sm transition-colors duration-150 cursor-pointer"
-                              aria-label={text.close}
-                              title={text.close}
-                            >
-                              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
-                              </svg>
-                            </button>
-                          )}
+        <span
+          className={`text-xs tabular-nums ml-auto ${
+            isOverLimit
+              ? "text-red-400 font-medium"
+              : isNearLimit
+              ? "text-yellow-400"
+              : "text-gray-500"
+          }`}
+        >
+          {textareaValue.length} / {MAX_PROMPT_LENGTH}
+        </span>
+      </div>
+    </div>
 
-                          <button
-                            type="button"
-                            onClick={handleToggleRecentPrompts}
-                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-blue-600 text-white shadow-sm hover:bg-blue-500 transition-colors duration-150 cursor-pointer"
-                            aria-label={text.recentPrompts}
-                            title={text.recentPrompts}
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                          </button>
-                        </div>
+    <p className="text-xs text-gray-500 mt-1 px-1">
+      💡  <span className="font-medium">Keyboard tip:</span> Press{" "}
+      <kbd className="px-1 py-0.5 text-xs bg-gray-700 rounded border border-gray-600">
+        Enter
+      </kbd>{" "}
+      to generate &bull;{" "}
+      <kbd className="px-1 py-0.5 text-xs bg-gray-700 rounded border border-gray-600">
+        Ctrl + Enter
+      </kbd>{" "}
+      also works &bull;{" "}
+      <kbd className="px-1 py-0.5 text-xs bg-gray-700 rounded border border-gray-600">
+        Shift + Enter
+      </kbd>{" "}
+      for new line
+    </p>
 
-                        <div className="flex items-center justify-between mt-3 pt-2 border-t border-slate-200/40 dark:border-white/5 select-none w-full box-border">
-                          <div className="flex-1 min-w-0 pr-4">
-                            {isOverLimit ? (
-                              <p className="text-[11px] font-semibold text-red-500 dark:text-red-400 flex items-center gap-1 truncate m-0">
-                                <span>⚠</span> {text.characterLimit}
-                              </p>
-                            ) : isNearLimit ? (
-                              <p className="text-[11px] font-semibold text-amber-500 dark:text-amber-400 flex items-center gap-1 truncate m-0">
-                                <span>⚠</span> {MAX_PROMPT_LENGTH - textareaValue.length} {text.charactersRemaining}
-                              </p>
-                            ) : null}
-                          </div>
-
-                          <span className={`text-[11px] font-bold tabular-nums shrink-0 ml-auto ${
-                            isOverLimit ? "text-red-500 dark:text-red-400" : isNearLimit ? "text-amber-500" : "text-slate-400"
-                          }`}>
-                            {textareaValue.length} / {MAX_PROMPT_LENGTH}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-2 p-3 bg-gradient-to-r from-indigo-50 to-purple-50 dark:from-indigo-950/40 dark:to-purple-950/40 rounded-xl border border-indigo-200 dark:border-indigo-800/30 text-slate-700 dark:text-slate-300 text-xs font-medium">
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-                        <span className="flex items-center gap-1">
-                          <span className="text-base">⌨️</span>
-                          <span className="font-bold text-indigo-600 dark:text-indigo-400">{text.keyboardTip}</span>
-                        </span>
-                        <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md text-xs font-mono font-bold shadow-sm">Enter</kbd>
-                        <span>to continue</span>
-                        <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md text-xs font-mono font-bold shadow-sm">Ctrl + Enter</kbd>
-                        <span>also works</span>
-                        <kbd className="px-2 py-1 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-md text-xs font-mono font-bold shadow-sm">Shift + Enter</kbd>
-                        <span>{text.forNewLine}</span>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end pt-2 w-full box-border">
-                      <button
-                        type="button"
-                        disabled={loading}
-                        onClick={handleNextStep}
-                        className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs sm:text-sm font-bold py-3 px-6 rounded-xl shadow-md shadow-blue-500/10 transition-all duration-150 active:scale-[0.98] select-none uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer"
-                      >
-                        <span>Next: Cast of Characters ➡️</span>
-                      </button>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    {/* Step 2 Content: Cast of Characters */}
-                    <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-white/5 select-none w-full">
-                      <button
-                        type="button"
-                        onClick={() => setCurrentStep(1)}
-                        className="flex items-center gap-1.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
-                      >
-                        ⬅️ Back to Story Details
-                      </button>
-                      <span className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider">Step 2 of 2</span>
-                    </div>
-
-                    <div className="space-y-2 select-none">
-                      <h2 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">Cast of Characters</h2>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                        Define custom characters to ensure Gemini maintains character roles, personality traits, and dynamic relationships consistently throughout the story.
-                      </p>
-                    </div>
-
-                    <div className="space-y-4">
-                      {characters.map((char, index) => (
-                        <div
-                          key={char.id}
-                          className="p-4 bg-slate-50 dark:bg-slate-950/40 border border-slate-200 dark:border-white/5 rounded-2xl space-y-4 relative"
-                        >
-                          <div className="flex items-center justify-between select-none">
-                            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                              👤 Character #{index + 1}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveCharacter(char.id)}
-                              className="text-xs font-bold text-red-500 hover:text-red-600 dark:text-red-400 dark:hover:text-red-300 hover:underline cursor-pointer"
-                            >
-                              Remove
-                            </button>
-                          </div>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-1.5">
-                              <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Name</label>
-                              <input
-                                type="text"
-                                value={char.name}
-                                onChange={(e) => handleCharacterChange(char.id, "name", e.target.value)}
-                                placeholder="e.g. Leo, Sir Cedric, Bella"
-                                className="w-full px-3 py-2 text-xs sm:text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl outline-none focus:border-blue-500/40 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 placeholder:italic"
-                              />
-                            </div>
-
-                            <div className="space-y-1.5">
-                              <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Role</label>
-                              <select
-                                value={char.role}
-                                onChange={(e) => handleCharacterChange(char.id, "role", e.target.value)}
-                                className="w-full px-3 py-2 text-xs sm:text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl outline-none focus:border-blue-500/40 text-slate-800 dark:text-slate-200"
-                              >
-                                <option value="Protagonist">Protagonist (Hero/Main Character)</option>
-                                <option value="Companion">Companion (Sidekick/Friend)</option>
-                                <option value="Rival">Rival (Competitor)</option>
-                                <option value="Antagonist">Antagonist (Villain/Obstacle)</option>
-                              </select>
-                            </div>
-                          </div>
-
-                          <div className="space-y-1.5">
-                            <label className="text-xs font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">Personality & Traits</label>
-                            <textarea
-                              value={char.personality}
-                              onChange={(e) => handleCharacterChange(char.id, "personality", e.target.value)}
-                              placeholder="e.g. Brave but clumsy, loves eating carrots, afraid of the dark..."
-                              rows={2}
-                              className="w-full px-3 py-2 text-xs sm:text-sm bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl outline-none resize-none focus:border-blue-500/40 text-slate-800 dark:text-slate-200 placeholder:text-slate-400 placeholder:italic"
-                            />
-                          </div>
-                        </div>
-                      ))}
-
-                      <div className="flex justify-start select-none">
-                        <button
-                          type="button"
-                          onClick={handleAddCharacter}
-                          className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-bold uppercase tracking-wider bg-slate-50 border border-slate-200/80 text-slate-600 hover:bg-slate-100 dark:bg-white/5 dark:border-white/5 dark:text-slate-400 dark:hover:bg-white/10 rounded-xl transition-all cursor-pointer"
-                        >
-                          <i className="fas fa-plus" />
-                          <span>Add Another Character</span>
-                        </button>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-100 dark:border-white/5 w-full box-border select-none">
-                      <button
-                        type="submit"
-                        disabled={loading || isOverLimit}
-                        aria-busy={loading}
-                        aria-disabled={loading || isOverLimit}
-                        className={`w-full sm:w-auto bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs sm:text-sm font-bold py-3 px-6 rounded-xl shadow-md shadow-blue-500/10 transition-all duration-150 active:scale-[0.98] select-none uppercase tracking-wider flex items-center justify-center gap-2 ${
-                          loading || isOverLimit ? "opacity-50 cursor-not-allowed" : "cursor-pointer"
-                        } group`}
-                      >
-                        {loading ? (
-                          <i className="fas fa-circle-notch text-sm animate-spin" />
-                        ) : (
-                          <i className="fas fa-wand-magic-sparkles text-sm group-hover:scale-110 transition-transform duration-200" />
-                        )}
-                        <span>{loading ? text.generating : text.generate}</span>
-                      </button>
-                    </div>
-                    {loading && (
-                      <p className="text-sm text-indigo-300 mt-3 text-right" aria-live="polite">
-                        Your story is being generated. You can cancel the request if it takes too long.
-                      </p>
-                    )}
-                  </>
-                )}
-              </form>
+    <div className="flex justify-end mt-2 w-full">
+      <button
+        type="submit"
+        disabled={loading || isOverLimit}
+        className={`w-full sm:w-auto justify-center rounded-lg bg-gradient-to-r from-blue-400 to-indigo-500 text-gray-200 px-6 py-3 font-semibold ${
+          loading || isOverLimit
+            ? "opacity-50 cursor-not-allowed"
+            : "hover:shadow-lg hover:shadow-indigo-500/50"
+        } transition-all duration-300 transform hover:scale-105 flex items-center space-x-2 group cursor-pointer`}
+      >
+        <i className="fas fa-wand-magic-sparkles text-xl transition-transform duration-300 group-hover:animate-wiggle"></i>
+        {loading ? "Generating..." : "Generate"}
+      </button>
+    </div>
+  </form>
+</div>
             </div>
 
-            <div className="w-full text-left box-border">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500 mb-2 select-none px-0.5">
-                {text.examples}
+            <div className="w-full max-w-2xl m-auto mt-4">
+  <h1 className="text-sm text-gray-500 mb-1">
+    Here are some example prompts you can refer to:-
+  </h1>
+
+  <div className="relative" ref={dropdownRef}>
+    <button
+      type="button"
+      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+      className="w-full p-3 bg-slate-800 text-gray-400 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500/50 flex items-center justify-between text-sm text-left transition-all duration-200"
+    >
+      <span className="truncate pr-4">
+        {selectedPrompt || "Select a prompt"}
+      </span>
+
+      <span
+        className={`text-gray-300 transition-transform duration-200 ${
+          isDropdownOpen ? "rotate-180" : ""
+        }`}
+      >
+        ▼
+      </span>
+    </button>
+
+    {isDropdownOpen && (
+      <ul className="absolute z-10 w-full mt-1 max-h-60 overflow-y-auto bg-slate-800 border border-slate-700/50 rounded-lg shadow-xl focus:outline-none divide-y divide-slate-700/30">
+        {prompts.map((item) => (
+          <li key={item.id}>
+            <button
+              type="button"
+              onClick={() => {
+                setSelectedPrompt(item.prompt);
+                setTextareaValue(item.prompt);
+                setIsDropdownOpen(false);
+              }}
+              className="w-full text-left px-4 py-3 text-sm text-gray-400 hover:bg-indigo-600 hover:text-white transition-colors duration-150 whitespace-normal break-words leading-relaxed"
+            >
+              {item.prompt}
+            </button>
+          </li>
+        ))}
+      </ul>
+    )}
+  </div>
+</div>
+          </div>
+        </div>
+      </div>
+
+      {showHelpModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-slate-900 border border-slate-700 rounded-2xl p-6 max-w-md w-full">
+            <h2 className="text-xl font-bold text-white mb-4">
+              Keyboard Shortcuts
+            </h2>
+
+            <div className="space-y-3 text-gray-300 text-sm">
+              <div><kbd>?</kbd> Open help</div>
+              <div><kbd>Esc</kbd> Close help</div>
+              <div><kbd>/</kbd> Focus prompt</div>
+              <div><kbd>Ctrl + Enter</kbd> Generate story</div>
+              <div><kbd>Ctrl + S</kbd> Publish story</div>
+            </div>
+
+            <button
+              onClick={() => setShowHelpModal(false)}
+              className="mt-6 w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-lg"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+
+      {loading && <StoryGeneratingAnimation />}
+      <StoriesViewComponent
+        stories={stories}
+        isLogin={login}
+        setStories={setStories}
+      />
+      {/* Single decorative blur — absolute so it scrolls with content and doesn't bleed over modals */}
+      <div className="absolute top-[-200px] left-[250px] w-[800px] h-[350px] bg-blue-500/20 rounded-full blur-3xl -z-10 pointer-events-none"></div>
+
+      {showLimitModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-[#0f172a] border border-white/10 rounded-2xl shadow-[0_0_15px_rgba(59,130,246,0.5)] max-w-md w-full p-6 transform transition-all">
+            <div className="text-center">
+              <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i className="fas fa-lock text-2xl text-blue-400"></i>
+              </div>
+              <h3 className="text-2xl font-bold text-gray-200 mb-2">
+                Free Limit Reached
               </h3>
-
-              <div className="relative w-full" ref={dropdownRef}>
-                <button
-                  type="button"
-                  onClick={handleToggleDropdown}
-                  className="w-full p-3.5 bg-white dark:bg-[#111827]/40 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-white/10 rounded-xl focus:outline-none focus:border-blue-500/30 flex items-center justify-between text-xs sm:text-sm font-medium text-left transition-all duration-150 cursor-pointer select-none shadow-sm"
+              <p className="text-gray-400 mb-6 leading-relaxed">
+                You've used all 3 free story generations. Login to continue
+                creating more stories.
+              </p>
+              <div className="flex flex-col gap-3">
+                <Link
+                  to="/login"
+                  className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg hover:shadow-indigo-500/25"
                 >
-                  <span className="truncate pr-4">
-                    {selectedPrompt || text.selectPrompt}
-                  </span>
-                  <span className={`text-slate-400 dark:text-slate-500 text-[9px] transition-transform duration-150 shrink-0 ${isDropdownOpen ? "rotate-180" : ""}`}>
-                    ▼
-                  </span>
+                  Login
+                </Link>
+                <button
+                  onClick={() => setShowLimitModal(false)}
+                  className="w-full bg-transparent hover:bg-white/5 text-gray-400 hover:text-gray-300 font-medium py-3 px-4 rounded-xl transition-all"
+                >
+                  Continue Browsing
                 </button>
-
-                {isDropdownOpen && (
-                  <ul className="absolute z-10 mt-2 w-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-xl shadow-xl max-h-48 overflow-y-auto p-1.5 box-border list-none m-0">
-                    {prompts.map((promptItem, index) => (
-                      <li key={index} className="p-0 m-0 list-none">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const nextPrompt = promptItem.prompt;
-                            setTextareaValue(nextPrompt);
-                            setSelectedPrompt(nextPrompt);
-                            setValue("prompt", nextPrompt);
-                            setIsDropdownOpen(false);
-                          }}
-                          className="w-full text-left px-3 py-2 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5 rounded-lg transition-colors duration-150 cursor-pointer"
-                        >
-                          {promptItem.prompt}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
               </div>
             </div>
           </div>
         </div>
+      )}
 
-        <RecentPromptsPanel
-          recentPrompts={recentPrompts}
-          onSelectPrompt={handleSelectRecentPrompt}
-          onRemovePrompt={removePrompt}
-          onClearAll={clearAll}
-          isOpen={isRecentPromptsOpen}
-          onToggle={handleToggleRecentPrompts}
-          text={recentPromptsText}
-        />
-
-        {showHelpModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-            <div className="bg-white border border-slate-200 dark:border-white/10 rounded-2xl p-6 max-w-md w-full text-slate-900 dark:bg-slate-900 dark:text-white shadow-xl">
-              <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4 tracking-tight select-none border-b border-slate-100 dark:border-white/5 pb-2.5">
-                {text.shortcuts}
-              </h2>
-
-              <div className="space-y-3 text-slate-600 text-sm dark:text-gray-300">
-                <div><kbd className="px-2 py-1 bg-gray-100 dark:bg-slate-800 rounded border border-gray-300 dark:border-slate-600 text-xs font-mono">?</kbd> {text.openHelp}</div>
-                <div><kbd className="px-2 py-1 bg-gray-100 dark:bg-slate-800 rounded border border-gray-300 dark:border-slate-600 text-xs font-mono">Esc</kbd> {text.closeHelp}</div>
-                <div><kbd className="px-2 py-1 bg-gray-100 dark:bg-slate-800 rounded border border-gray-300 dark:border-slate-600 text-xs font-mono">/</kbd> {text.focusPrompt}</div>
-                <div><kbd className="px-2 py-1 bg-gray-100 dark:bg-slate-800 rounded border border-gray-300 dark:border-slate-600 text-xs font-mono">Ctrl + Enter</kbd> {text.generateStory}</div>
-                <div><kbd className="px-2 py-1 bg-gray-100 dark:bg-slate-800 rounded border border-gray-300 dark:border-slate-600 text-xs font-mono">Ctrl + S</kbd> {text.publishStory}</div>
-              </div>
-
-              <button
-                onClick={() => setShowHelpModal(false)}
-                className="mt-6 w-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold uppercase tracking-wider py-2.5 rounded-xl transition-colors shadow-sm select-none cursor-pointer"
-              >
-                {text.close}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {loading && <StoryGeneratingAnimation onCancel={handleCancelGeneration} />}
-
-        {/* Search UI */}
-        {stories.length > 0 && (
-          <div className="mb-6 bg-slate-800/80 backdrop-blur-xl border border-slate-700/50 p-4 rounded-2xl">
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="flex-1">
-                <input
-                  type="text"
-                  placeholder="Search stories..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-200 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-              <select
-                value={searchFilter}
-                onChange={(e) => setSearchFilter(e.target.value)}
-                className="px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-slate-200 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              >
-                <option value="all">All Fields</option>
-                <option value="title">Title</option>
-                <option value="content">Content</option>
-                <option value="genre">Genre</option>
-              </select>
-            </div>
-            {searchQuery && (
-              <div className="mt-2 text-sm text-slate-400">
-                Found {filteredStories.length} {filteredStories.length === 1 ? 'story' : 'stories'}
-              </div>
-            )}
-          </div>
-        )}
-
-        <StoriesViewComponent
-          stories={currentStories}
-          isLogin={login}
-          setStories={setStories}
-          onPublishSuccess={handlePublishSuccess}
-          isLoading={loading}
-        />
-
-        <div className="fixed top-[-200px] left-[250px] w-[800px] h-[350px] bg-blue-500/20 rounded-full blur-3xl -z-10"></div>
-
-        {showLimitModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
-            <div className="bg-white border border-gray-200 rounded-2xl shadow-[0_0_15px_rgba(59,130,246,0.15)] max-w-md w-full p-6 transform transition-all text-slate-900 dark:bg-[#0f172a] dark:border-white/10 dark:text-white dark:shadow-[0_0_15px_rgba(59,130,246,0.5)]">
-              <div className="text-center">
-                <div className="w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <i className="fas fa-lock text-2xl text-blue-400"></i>
-                </div>
-                <h3 className="text-2xl font-bold text-slate-900 mb-2 dark:text-gray-200">
-                  {text.freeLimitReached}
-                </h3>
-                <p className="text-slate-600 mb-6 leading-relaxed dark:text-gray-400">
-                  {text.freeLimitMessage}
-                </p>
-                <div className="flex flex-col gap-3">
-                  <Link
-                    to="/login"
-                    className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-semibold py-3 px-4 rounded-xl transition-all shadow-lg hover:shadow-indigo-500/25"
-                  >
-                    {text.login}
-                  </Link>
-                  <button
-                    onClick={() => setShowLimitModal(false)}
-                    className="w-full bg-transparent hover:bg-slate-100 text-slate-600 hover:text-slate-900 font-medium py-3 px-4 rounded-xl transition-all dark:hover:bg-white/5 dark:text-gray-400 dark:hover:text-gray-300"
-                  >
-                    {text.continueBrowsing}
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-       
-        {totalPages > 1 && (
-          <div className="flex justify-center items-center gap-4 mt-6">
-            <button
-              onClick={() => setCurrentPage((p) => p - 1)}
-              disabled={currentPage === 1}
-              className="px-4 py-2 rounded bg-slate-700 text-white disabled:opacity-50 cursor-pointer"
-            >
-              Previous
-            </button>
-
-            <span>
-              Page {currentPage} of {totalPages}
-            </span>
-
-            <button
-              onClick={() => setCurrentPage((p) => p + 1)}
-              disabled={currentPage === totalPages}
-              className="px-4 py-2 rounded bg-slate-700 text-white disabled:opacity-50 cursor-pointer"
-            >
-              Next
-            </button>
-          </div>
-        )}
-
-        <Toaster position="top-right" reverseOrder={false} />
-      </div>
+      <Toaster position="top-right" reverseOrder={false} />
     </div>
   );
 };
