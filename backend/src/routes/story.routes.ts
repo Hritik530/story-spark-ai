@@ -5,48 +5,139 @@ import { AIModelValidator } from "../app/modules/ai_model/ai_model.validation";
 import { ReviewValidator } from "../app/modules/review/review.validation";
 import validateRequest from "../app/middleware/validate.request";
 import auth from "../app/middleware/auth.middleware";
-import freeAiRateLimiter from "../app/middleware/free-ai.rate-limiter";
+import checkRequestLimit from "../app/middleware/check.request.limit";
+import { enforceQuota } from "../app/middleware/enforceQuota.middleware";
+import storyGenerationRateLimiter from "../app/middleware/story.rate-limiter";
 import { ENUM_USER_ROLE } from "../enums/user";
 import catchAsync from "../shared/catch_async";
 import sendResponse from "../shared/send_response";
 import httpStatus from "http-status";
 import { Request, Response } from "express";
+import piiScrubberMiddleware from "../app/middleware/pii_scrubber";
+import { generateStory } from "../services/ai.service";
+import { runWithQuotaCleanup } from "../app/modules/ai_model/quota.lifecycle";
+import mongoose from "mongoose";
+import { Post } from "../app/modules/post/post.model";
+import rateLimit from "express-rate-limit";
+
+
+// add to imports
+import { generateReaderRoomFeedback } from "../services/ai.service";
+
+import idempotencyMiddleware, {
+  completeIdempotentRequest,
+  releaseIdempotentRequest,
+} from "../app/middleware/idempotency.middleware";
 
 const router = express.Router();
 
-/**
- * STORY CONTINUATION
- * POST /api/v1/story-continuation/continue
- *
- * Previously returned a hardcoded string and never called the AI.
- * Now validates the request body, applies a rate limit, and delegates
- * to AiModelService.aiFreeStoryContinuation which calls Gemini.
- */
+const MAX_PROMPT_LENGTH = 2000;
+
+const validatePromptLength = (prompt: string): void => {
+  if (!prompt || typeof prompt !== "string") {
+    throw new Error("Prompt is required and must be a string.");
+  }
+  if (prompt.length > MAX_PROMPT_LENGTH) {
+    throw new Error(`Prompt must not exceed ${MAX_PROMPT_LENGTH} characters.`);
+  }
+};
+
+const generateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 15,
+  keyGenerator: (req: Request & { user?: any }) => req.user?.id ?? req.ip ?? "unknown",
+  standardHeaders: true,
+  handler: (req: Request, res: Response) => {
+    res.status(429).json({ error: "Generation limit reached. Please try again in an hour." });
+  },
+});
+
+/** STORY CONTINUATION - single */
 router.post(
   "/continue",
-  freeAiRateLimiter,
+  // Authenticated users get the per-user storyGenerationRateLimiter.
+  // Unauthenticated requests are rejected by auth middleware first.
+  auth(
+    ENUM_USER_ROLE.USER,
+    ENUM_USER_ROLE.WRITER,
+    ENUM_USER_ROLE.ADMIN,
+    ENUM_USER_ROLE.SUPER_ADMIN
+  ),
+  storyGenerationRateLimiter,
+  enforceQuota("story_continue"),
+  piiScrubberMiddleware,
   validateRequest(AIModelValidator.aiStoryContinuation),
   catchAsync(async (req: Request, res: Response) => {
     const { prompt, language } = req.body as { prompt: string; language?: string };
-    const result = await AiModelService.aiFreeStoryContinuation({ prompt, language });
-    sendResponse(res, {
-      statusCode: httpStatus.OK,
-      success: true,
-      message: "Story continuation generated successfully!",
-      data: result,
+    const guard = res.locals.quotaRefundGuard;
+
+    if (!guard) {
+      throw new Error(
+        "Quota guard missing — checkRequestLimit middleware is required"
+      );
+    }
+
+    validatePromptLength(prompt);
+
+    const controller = new AbortController();
+    req.on("close", () => controller.abort());
+
+    await runWithQuotaCleanup(guard, async () => {
+      const result = await AiModelService.aiModelStoryContinuation(
+        { prompt, language },
+        undefined,
+        controller.signal
+      );
+      sendResponse(res, {
+        statusCode: httpStatus.OK,
+        success: true,
+        data: result,
+      });
     });
   })
 );
 
-/**
- * CREATE REVIEW
- * POST /api/v1/story-continuation/create
- *
- * Previously was a no-op stub that always returned 201 without
- * authentication, validation, or a database write.
- * Now requires authentication, validates the request body, and
- * persists the review via ReviewController.createReview.
- */
+/** STORY CONTINUATIONS - multiple */
+router.post(
+  "/continuations",
+  auth(
+    ENUM_USER_ROLE.USER,
+    ENUM_USER_ROLE.WRITER,
+    ENUM_USER_ROLE.ADMIN,
+    ENUM_USER_ROLE.SUPER_ADMIN
+  ),
+  storyGenerationRateLimiter,
+  enforceQuota("story_continue"),
+  piiScrubberMiddleware,
+  validateRequest(AIModelValidator.aiStoryContinuation),
+  catchAsync(async (req: Request, res: Response) => {
+    const { prompt, language, count } = req.body as { prompt: string; language?: string; count?: number };
+    const guard = res.locals.quotaRefundGuard;
+
+    if (!guard) {
+      throw new Error(
+        "Quota guard missing — checkRequestLimit middleware is required"
+      );
+    }
+
+    const controller = new AbortController();
+    req.on("close", () => controller.abort());
+
+    await runWithQuotaCleanup(guard, async () => {
+      const result = await AiModelService.aiFreeStoryContinuationMultiple(
+        { prompt, language, count },
+        controller.signal
+      );
+      sendResponse(res, {
+        statusCode: httpStatus.OK,
+        success: true,
+        data: result,
+      });
+    });
+  })
+);
+
+/** CREATE REVIEW */
 router.post(
   "/create",
   auth(
@@ -58,5 +149,193 @@ router.post(
   validateRequest(ReviewValidator.createReview),
   ReviewController.createReview
 );
+
+/** GENERATE STORY */
+router.post(
+  "/generate",
+  auth(
+    ENUM_USER_ROLE.USER,
+    ENUM_USER_ROLE.WRITER,
+    ENUM_USER_ROLE.ADMIN,
+    ENUM_USER_ROLE.SUPER_ADMIN
+  ),
+  // NEW — must run before checkRequestLimit() so a duplicate/retried request
+  // never reserves quota or reaches generateStory() a second time.
+  idempotencyMiddleware(),
+  storyGenerationRateLimiter,
+  enforceQuota("story_generate"),
+  generateLimiter,
+  checkRequestLimit(),
+  validateRequest(AIModelValidator.aiStoryGenerate),
+  catchAsync(async (req: Request, res: Response) => {
+    const { prompt, provider, options } = req.body;
+    const guard = res.locals.quotaRefundGuard;
+    const idempotencyKey = res.locals.idempotencyKey as string | undefined;
+
+    if (!guard) {
+      throw new Error(
+        "Quota guard missing — checkRequestLimit middleware is required"
+      );
+    }
+
+    validatePromptLength(prompt);
+
+    const controller = new AbortController();
+    req.on("close", () => controller.abort());
+
+    try {
+      await runWithQuotaCleanup(guard, async () => {
+        const result = await generateStory(prompt, provider, options);
+        const responseBody = {
+          success: true,
+          message: "Story generated successfully in structured format!",
+          data: result,
+        };
+
+        // Cache the response against this Idempotency-Key so a retried
+        // request replays it instead of calling the AI provider again.
+        await completeIdempotentRequest(idempotencyKey, httpStatus.OK, responseBody);
+
+        sendResponse(res, {
+          statusCode: httpStatus.OK,
+          ...responseBody,
+        });
+      });
+    } catch (err) {
+      // Release the key on failure so a legitimate retry isn't stuck
+      // behind a stale "in_progress" record.
+      await releaseIdempotentRequest(idempotencyKey);
+      throw err;
+    }
+  })
+);
+
+/** SAVE STORY DRAFT (autosave) */
+router.patch(
+  "/:id/save",
+  auth(
+    ENUM_USER_ROLE.USER,
+    ENUM_USER_ROLE.WRITER,
+    ENUM_USER_ROLE.ADMIN,
+    ENUM_USER_ROLE.SUPER_ADMIN
+  ),
+  catchAsync(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { title, content } = req.body as { title?: string; content?: string };
+    const userId = (req as any).user?._id;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({ success: false, message: "Invalid story id." });
+      return;
+    }
+
+    if (typeof title !== "string" && typeof content !== "string") {
+      res.status(400).json({
+        success: false,
+        message: "Nothing to save — provide a title and/or content.",
+      });
+      return;
+    }
+
+    const update: Record<string, string> = {};
+    if (typeof title === "string") update.title = title;
+    if (typeof content === "string") update.content = content;
+
+    // Scoped to author so one user can't autosave over another user's story.
+    const updated = await Post.findOneAndUpdate(
+      { _id: id, author: userId, isDeleted: { $ne: true } },
+      { $set: update },
+      { new: true, runValidators: true, select: "title content updatedAt" }
+    );
+
+    if (!updated) {
+      res.status(404).json({
+        success: false,
+        message: "Story not found, or you don't have permission to edit it.",
+      });
+      return;
+    }
+
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: "Draft saved.",
+      data: updated,
+    });
+  })
+);
+
+/** AI READER ROOM: multi-persona feedback before publishing */
+router.post(
+  "/:id/reader-room",
+  auth(
+    ENUM_USER_ROLE.USER,
+    ENUM_USER_ROLE.WRITER,
+    ENUM_USER_ROLE.ADMIN,
+    ENUM_USER_ROLE.SUPER_ADMIN
+  ),
+  storyGenerationRateLimiter,
+  checkRequestLimit(),
+  catchAsync(async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { targetAudience, provider } = req.body as {
+      targetAudience?: string;
+      provider?: string;
+    };
+    const userId = (req as any).user?._id;
+    const guard = res.locals.quotaRefundGuard;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      res.status(400).json({ success: false, message: "Invalid story id." });
+      return;
+    }
+    if (!targetAudience) {
+      res.status(400).json({ success: false, message: "targetAudience is required." });
+      return;
+    }
+    if (!guard) {
+      throw new Error("Quota guard missing — checkRequestLimit middleware is required");
+    }
+
+    const story = await Post.findOne({ _id: id, author: userId, isDeleted: { $ne: true } });
+    if (!story) {
+      res.status(404).json({
+        success: false,
+        message: "Story not found, or you don't have permission to review it.",
+      });
+      return;
+    }
+
+    // Post.content is a single string (see #5664 notes) — split into
+    // pseudo-chapters on the same markdown-style headers the export flow uses,
+    // falling back to one chapter if none are found.
+    const chapters = story.content
+      .split(/\n(?=## )/)
+      .filter((c) => c.trim().length > 0)
+      .map((c, i) => {
+        const titleMatch = c.match(/^##\s*(.+)/);
+        return {
+          title: titleMatch ? titleMatch[1].trim() : `Chapter ${i + 1}`,
+          content: c.replace(/^##\s*.+\n?/, "").trim(),
+        };
+      });
+
+    if (chapters.length === 0) {
+      chapters.push({ title: story.title, content: story.content });
+    }
+
+    await runWithQuotaCleanup(guard, async () => {
+      const result = await generateReaderRoomFeedback(chapters, targetAudience, provider);
+      sendResponse(res, {
+        statusCode: httpStatus.OK,
+        success: true,
+        message: "Reader Room feedback generated.",
+        data: result,
+      });
+    });
+  })
+);
+
+
 
 export default router;

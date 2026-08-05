@@ -9,9 +9,10 @@ import pick from "../../../shared/pick";
 import { postFilterFields } from "./post.constant";
 import { paginationFields } from "../../../constants/pagination";
 import { IPost } from "./post.interface";
+import { sanitizeStoryPayload } from "../../../utils/sanitize.util";
 
 const createPost = catchAsync(async (req: Request, res: Response) => {
-  const postData = req.body;
+  const postData = sanitizeStoryPayload(req.body);
   const token = await getToken(req);
   const result = await PostService.createPost(postData, token);
   sendResponse(res, {
@@ -89,7 +90,15 @@ const doFeaturedPosts = catchAsync(async (req: Request, res: Response) => {
 
 const getSinglePost = catchAsync(async (req: Request, res: Response) => {
   const id = routeParam(req.params.id);
-  const result = await PostService.getSinglePost(id);
+  
+  let token = null;
+  try {
+    token = await getToken(req);
+  } catch (error) {
+    // Guest or unauthenticated request
+  }
+
+  const result = await PostService.getSinglePost(id, token);
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -101,6 +110,7 @@ const getSinglePost = catchAsync(async (req: Request, res: Response) => {
 const getPostsByTag = catchAsync(async (req: Request, res: Response) => {
   const tag = routeParam(req.params.tag);
   const excludeId = req.query.excludeId as string | undefined;
+  const limit = req.query.limit ? Math.min(Number(req.query.limit), 50) : 10;
   const result = await PostService.getPostsByTag(tag, excludeId);
   sendResponse(res, {
     statusCode: httpStatus.OK,
@@ -124,7 +134,7 @@ const toggleBookmark = catchAsync(async (req: Request, res: Response) => {
 
 const updatePost = catchAsync(async (req: Request, res: Response) => {
   const id = routeParam(req.params.id);
-  const postData = req.body;
+  const postData = sanitizeStoryPayload(req.body);
   const token = await getToken(req);
   const result = await PostService.updatePost(id, postData, token);
   sendResponse(res, {
@@ -175,6 +185,18 @@ const translateStory = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
+const forkStory = catchAsync(async (req: Request, res: Response) => {
+  const id = routeParam(req.params.id);
+  const token = await getToken(req);
+  const result = await PostService.forkStory(id, token);
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Story forked successfully!",
+    data: result,
+  });
+});
+
 const getGenres = catchAsync(async (_req: Request, res: Response) => {
   const result = await PostService.getGenres();
   sendResponse(res, {
@@ -182,6 +204,16 @@ const getGenres = catchAsync(async (_req: Request, res: Response) => {
     success: true,
     message: "Genres fetched successfully!",
     data: result,
+  });
+});
+
+const bulkDelete = catchAsync(async (req: Request, res: Response) => {
+  const { ids } = req.body;
+  const token = await getToken(req);
+  const result = await PostService.bulkDeletePosts(ids, token);
+  res.status(httpStatus.OK).json({
+    deleted: result.deleted,
+    failed: result.failed,
   });
 });
 
@@ -199,5 +231,7 @@ export const PostController = {
   deletePost,
   remixStory,
   translateStory,
+  forkStory,
   getGenres,
+  bulkDelete,
 };

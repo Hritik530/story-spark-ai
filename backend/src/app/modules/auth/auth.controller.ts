@@ -6,6 +6,7 @@ import sendResponse from "../../../shared/send_response";
 import { IUser } from "../user/user.interface";
 import catchAsync from "../../../shared/catch_async";
 import { setRefreshTokenCookie, clearRefreshTokenCookie } from "../../../utils/cookie.util";
+import { VerifyEmailService } from "../verify_email/verify_email.service";
 
 const login = catchAsync(async (req: Request, res: Response) => {
   const body: AuthModel = req.body;
@@ -54,14 +55,24 @@ const refreshToken = catchAsync(async (req: Request, res: Response) => {
 });
 
 const logout = catchAsync(async (req: Request, res: Response) => {
-  const token = req.cookies?.refreshToken as string | undefined;
-  await AuthService.logout(token);
+  const authHeader = req.headers.authorization;
+  let activeToken = "";
+  if (authHeader) {
+    activeToken = authHeader.startsWith("Bearer ")
+      ? authHeader.slice(7).trim()
+      : authHeader.trim();
+  } else {
+    activeToken = req.cookies?.accessToken || req.cookies?.token || "";
+  }
+
+  const refreshToken = req.cookies?.refreshToken as string | undefined;
+  if (refreshToken) {
+    await AuthService.logout(refreshToken);
+  }
   clearRefreshTokenCookie(res);
-  sendResponse(res, {
-    statusCode: httpStatus.OK,
-    success: true,
-    message: "Logged out successfully",
-    data: null,
+
+  res.status(httpStatus.OK).json({
+    message: "Logged out successfully. Session revoked securely."
   });
 });
 
@@ -84,13 +95,15 @@ const changePassword = catchAsync(async (req: Request, res: Response) => {
   const user = (req as any).user;
   const { oldPassword, newPassword } = req.body;
 
-  await AuthService.changePassword(user, { oldPassword, newPassword });
+  const { accessToken, refreshToken } = await AuthService.changePassword(user, { oldPassword, newPassword });
 
-   sendResponse(res, {
+  setRefreshTokenCookie(res, refreshToken);
+
+  sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
     message: "Password changed successfully. All previous sessions have been invalidated.",
-    data: null,
+    data: { accessToken },
   });
 });
 
@@ -120,8 +133,31 @@ const resetPassword = catchAsync(async (req: Request, res: Response) => {
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
-       message: "Password reset successfully!",
+    message: "Password reset successfully!",
     data: { accessToken },
+  });
+});
+
+const sendOtp = catchAsync(async (req: Request, res: Response) => {
+  const { email } = req.body;
+  const result = await VerifyEmailService.VerifyEmail({ email, name: "User" });
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "OTP sent successfully!",
+    data: result,
+  });
+});
+
+const verifyEmailChange = catchAsync(async (req: Request, res: Response) => {
+  const { token, email } = req.body;
+  const result = await AuthService.verifyEmailChange({ token, email });
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Email changed successfully!",
+    data: result,
   });
 });
 
@@ -134,4 +170,6 @@ export const AuthController = {
   changePassword,
   forgotPassword,
   resetPassword,
+  sendOtp,
+  verifyEmailChange,
 };

@@ -141,12 +141,41 @@ def compute_threshold(model, X_normal_scaled: np.ndarray) -> float:
     errors = np.mean((X_normal_scaled - recon) ** 2, axis=(1, 2))
     return float(np.mean(errors) + 2 * np.std(errors))
 
-
 # ── Build model for tuner ─────────────────────────────────────────────────────
 
 def build_model_tuner(hp):
-    units = hp.Int("units", min_value=16, max_value=128, step=16)
-    return build_model(units)
+    """
+    Define the hyperparameter search space.
+
+    Instead of tuning only the number of LSTM units,
+    also tune dropout and learning rate to find a
+    better-performing model automatically.
+    """
+
+    units = hp.Int(
+        "units",
+        min_value=16,
+        max_value=128,
+        step=16,
+    )
+
+    dropout = hp.Float(
+        "dropout",
+        min_value=0.1,
+        max_value=0.5,
+        step=0.1,
+    )
+
+    learning_rate = hp.Choice(
+        "learning_rate",
+        values=[1e-2, 1e-3, 5e-4, 1e-4],
+    )
+
+    return build_model(
+        units=units,
+        dropout=dropout,
+        learning_rate=learning_rate,
+    )
 
 
 # ── Train ────────────────────────────────────────────────────────────────────

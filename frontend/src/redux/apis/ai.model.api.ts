@@ -93,6 +93,36 @@ const aiModelApi = baseApi.injectEndpoints({
       },
       invalidatesTags: [tagTypes.model],
     }),
+    continueStory: build.mutation({
+      query: (data: { prompt: string; language?: string }) => ({
+        url: `/${AI_MODEL_URL}/continue-story`,
+        method: "POST",
+        data,
+      }),
+      transformResponse: (response: { data: { continuation: string }; message: string }) => {
+        return { data: response.data, message: response.message };
+      },
+      invalidatesTags: [tagTypes.model, tagTypes.user],
+    }),
+    continueFreeStory: build.mutation({
+      query: (data: { prompt: string; language?: string }) => ({
+        url: `/${AI_MODEL_URL}/continue-story-free`,
+        method: "POST",
+        data,
+      }),
+      transformResponse: (response: { data: { continuation: string }; message: string }) => {
+        return { data: response.data, message: response.message };
+      },
+      invalidatesTags: [tagTypes.model],
+    }),
+    getUsage: build.query<{ plan: string; usage: Record<string, { used: number; limit: number }>; resetsAt: string }, void>({
+      query: () => ({
+        url: `/usage/me`,
+        method: "GET",
+      }),
+      transformResponse: (response: { data: any }) => response.data,
+      providesTags: [tagTypes.user, tagTypes.model],
+    }),
   }),
 });
 
@@ -105,5 +135,8 @@ export const {
   useRemixFreeStoryMutation,
   useTranslateStoryMutation,
   useTranslateFreeStoryMutation,
+  useContinueStoryMutation,
+  useContinueFreeStoryMutation,
+  useGetUsageQuery,
 } = aiModelApi;
 

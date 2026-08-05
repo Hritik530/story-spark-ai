@@ -44,12 +44,13 @@ const AnalyticsPage = () => {
     const res = await fetch(
       `${API_BASE}/analytics/${endpoint}`,
       {
-        headers: { Authorization: token },
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         signal,
       }
     );
   
-    const data = await res.json();
+    if (!res.ok) throw new Error("Request failed");
+const data = await res.json();
     return data.data;
   };
 

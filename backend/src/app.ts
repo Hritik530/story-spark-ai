@@ -14,10 +14,18 @@ import cookieParser from "cookie-parser";
 import config from "./config";
 import { Routers } from "./router";
 import globalErrorHandler from "./app/middleware/global.error.handler";
-import { User } from "./app/modules/user/user.model";
+import leaderboardRoute from "./routes/leaderboard.route";
+import globalRateLimiter from "./app/middleware/global.rate-limiter";
+import { sanitizeAllMiddleware } from "./app/middleware/sanitize.middleware";
+import ApiError from "./errors/api_error";
 
 const app: Application = express();
-app.set("trust proxy", 1);
+// Only trust the proxy in production, where we're actually behind a real
+// reverse proxy. In dev there's no real proxy in front of us, so trusting
+// X-Forwarded-For would let a client spoof its own IP and bypass rate limiting.
+if (process.env.NODE_ENV === "production") {
+  app.set("trust proxy", 1);
+}
 app.use(helmet());
 
 const limiter = rateLimit({
@@ -27,7 +35,7 @@ const limiter = rateLimit({
 });
 app.use(limiter as unknown as RequestHandler);
 
-const defaultCorsOrigins = [
+export const defaultCorsOrigins = [
   "http://localhost:4001",
   "http://localhost:4002",
   "https://storysparkai-five.vercel.app",
@@ -42,7 +50,11 @@ const corsOrigins =
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || corsOrigins.includes(origin)) {
+      if (!origin) {
+        callback(new Error("Origin header required"));
+        return;
+      }
+      if (corsOrigins.includes(origin)) {
         callback(null, true);
       } else {
         callback(new Error("Blocked by Cross-Origin Resource Sharing (CORS) Policy"));
@@ -54,28 +66,40 @@ app.use(
   })
 );
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true })); // Keeps your extended payload parsing enabled
-app.use(cookieParser() as any);
-app.use(express.urlencoded({ extended: true }));
+// Rate limiter — placed after CORS so OPTIONS preflight requests are
+// never counted against the limit before CORS has a chance to respond.
+app.use(globalRateLimiter);
+
+// Payload limit set to 10mb to support large story content and character
+// network data without triggering 413 errors. Previously 2mb, which was
+// too restrictive for real story payloads — see PR discussion if this
+// needs revisiting against DoS-hardening concerns.
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use(cookieParser() as unknown as RequestHandler);
+app.use(sanitizeAllMiddleware);
+
+// Legacy Route Rewrite Rules
+app.use((req, res, next) => {
+  if (
+    req.method === "GET" &&
+    /^\/api\/story\/[a-f0-9]{24}\/character-network$/i.test(req.path)
+  ) {
+    req.url = req.url.replace(/^\/api\/story\//, "/api/v1/story/");
+  }
+  next();
+});
 
 app.use("/api/v1", Routers);
 
-app.use((req: Request, res: Response, _next: NextFunction) => {
-  res.status(httpStatus.NOT_FOUND).json({
-    success: false,
-    message: "Not Found",
-    errorMessages: [
-      {
-        path: req.originalUrl,
-        message: "API Not Found",
-      },
-    ],
-  });
+app.use((req: Request, _res: Response, next: NextFunction) => {
+  next(
+    new ApiError(
+      httpStatus.NOT_FOUND,
+      `The requested API endpoint route does not exist: ${req.originalUrl}`
+    )
+  );
 });
-
 app.use(globalErrorHandler);
-
 
 export default app;

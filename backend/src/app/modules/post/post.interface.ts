@@ -19,11 +19,14 @@ export interface IPostPayload {
 }
 
 export interface IPost extends IPostPayload {
-  _id?: Types.ObjectId;
+  _id: Types.ObjectId;
   author: Types.ObjectId;
   likesCount: number;
   commentsCount: number;
   viewsCount: number;
+  bookmarksCount: number;
+  averageRating: number;
+  totalRatings: number;
   isPublished: boolean;
   isFeaturedPost?: boolean;
   isDeleted?: boolean;
@@ -34,11 +37,25 @@ export interface IPost extends IPostPayload {
   attachments?: string[];
   comments?: Types.ObjectId[];
   reactions?: Types.ObjectId[];
-  bookmarksCount: number;
   bookmarks?: Types.ObjectId[];
+  parentStoryId?: Types.ObjectId;
+  rootStoryId?: Types.ObjectId;
 }
 
-export type PostModel = Model<IPost, object>;
+export interface IEngagementStats {
+  likesCount: number;
+  commentsCount: number;
+  bookmarksCount: number;
+  viewsCount: number;
+  averageRating: number;
+  totalRatings: number;
+}
+
+export type PostModel = Model<IPost, object> & {
+  getEngagementStats(
+    postId: string | Types.ObjectId
+  ): Promise<IEngagementStats | null>;
+};
 
 export interface IPostSearchFields {
   searchTerm?: string;
