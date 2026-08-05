@@ -29,7 +29,8 @@ const ErrorPage = () => {
       setTimeout(() => {
         window.location.reload();
       }, 300);
-    } catch {
+    } catch (error) {
+      console.error("Failed to reset cache", error);
       window.location.reload();
     }
   };
