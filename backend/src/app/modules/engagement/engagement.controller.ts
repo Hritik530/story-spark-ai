@@ -7,6 +7,9 @@ export const EngagementController = {
       const { chapterText, title } = req.body;
       const data = await analyzeEngagement(chapterText, title);
       return res.status(200).json({ success: true, data });
+    } catch (error) {
+      console.error("Engagement analysis failed", error);
+      return res.status(500).json({
   } catch (error) {
     console.error('[EngagementController] Failed:', error);
         success: false,
