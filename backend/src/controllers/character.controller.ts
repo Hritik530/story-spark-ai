@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import httpStatus from 'http-status';
 import { Character } from '../models/Character.model';
+import { Character } from '../Character.model';
 import ApiError from '../errors/api_error';
 import catchAsync from '../shared/catch_async';
 
@@ -65,6 +66,7 @@ export const updateCharacter = catchAsync(async (req: Request, res: Response, ne
   delete updates._id;
   delete updates.createdAt;
   delete updates.updatedAt;
+
   const character = await Character.findOneAndUpdate(
     { _id: id, userId },
     { $set: updates },
