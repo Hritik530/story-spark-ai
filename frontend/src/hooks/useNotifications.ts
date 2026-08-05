@@ -25,6 +25,7 @@ export const useNotifications = () => {
     return () => window.removeEventListener("story-spark-auth-change", handleAuthChange);
   }, []);
 
+
   const { data, isFetching, refetch } = useGetNotificationsQuery(undefined, {
     skip: !isAuthed,
   });
@@ -62,16 +63,30 @@ export const useNotifications = () => {
   const close = useCallback(() => setIsOpen(false), []);
 
   const markAsRead = async (notificationId: string) => {
-    await markNotificationRead(notificationId).unwrap();
+    try {
+      setMutationError(null);
+      await markNotificationRead(notificationId).unwrap();
+    } catch (error) {
+      const msg = "Failed to mark notification as read. Please try again.";
+      console.error(msg, error);
+      setMutationError(msg);
+    }
   };
 
   const markAllAsRead = async () => {
     if (unreadCount === 0) return;
-    await markAllRead().unwrap();
-    // Optimistically clear realtime state so the badge drops immediately
-    setRealtimeNotifications((prev) =>
-      prev.map((n) => ({ ...n, isRead: true }))
-    );
+    try {
+      setMutationError(null);
+      await markAllRead().unwrap();
+      // Optimistically clear realtime state so the badge drops immediately
+      setRealtimeNotifications((prev) =>
+        prev.map((n) => ({ ...n, isRead: true }))
+      );
+    } catch (error) {
+      const msg = "Failed to mark all notifications as read. Please try again.";
+      console.error(msg, error);
+      setMutationError(msg);
+    }
   };
 
   const refreshNotifications = useCallback(() => {
@@ -135,6 +150,7 @@ export const useNotifications = () => {
     isOpen,
     isFetching,
     isMarkingAllRead,
+    mutationError, 
     toggle,
     close,
     markAsRead,
