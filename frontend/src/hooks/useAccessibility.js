@@ -11,6 +11,19 @@ export const useAccessibility = () => {
       try {
         setHighContrast(JSON.parse(saved));
       } catch {
+        // malformed localStorage value — fall back to default (false)
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const saved = localStorage.getItem('accessibility-motion');
+    if (saved) {
+      try {
+        setReducedMotion(JSON.parse(saved));
+      } catch {
+        // malformed localStorage value — fall back to default (false)
         setHighContrast(false);
       }
     }
