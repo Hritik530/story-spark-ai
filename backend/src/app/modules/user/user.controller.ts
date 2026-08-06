@@ -6,6 +6,7 @@ import sendResponse from "../../../shared/send_response";
 import { getToken } from "../../middleware/token";
 import catchAsync from "../../../shared/catch_async";
 import ApiError from "../../../errors/api_error";
+import { ITokenPayload } from "../../../interfaces/token";
 import { User } from "./user.model";
 import { WritingStreakService } from "../gamification/writing_streak.service";
 
@@ -33,6 +34,15 @@ const getUser = catchAsync(async (req: Request, res: Response) => {
 const updateUser = catchAsync(async (req: Request, res: Response) => {
   const token = await getToken(req);
   const result = await UserService.updateUser(token, req.body);
+  if (result && "pendingEmail" in result) {
+    sendResponse(res, {
+      statusCode: httpStatus.ACCEPTED,
+      success: true,
+      message: (result as any).message,
+      data: { pendingEmail: (result as any).pendingEmail },
+    });
+    return;
+  }
   sendResponse(res, {
     statusCode: httpStatus.OK,
     success: true,
@@ -42,7 +52,19 @@ const updateUser = catchAsync(async (req: Request, res: Response) => {
 });
 
 const deleteUser = catchAsync(async (req: Request, res: Response) => {
+  const token = req.user as ITokenPayload;
   const id = routeParam(req.params.id);
+
+  if (
+    token.role !== "admin" &&
+    token.role !== "super_admin" &&
+    token._id !== id
+  ) {
+    throw new ApiError(
+      httpStatus.FORBIDDEN,
+      "You can only delete your own account!"
+    );
+  }
 
   await UserService.deleteUser(id);
 
@@ -143,6 +165,29 @@ const getFollowStatus = catchAsync(async (req: Request, res: Response) => {
     data: result,
   });
 });
+const getFollowers = catchAsync(async (req: Request, res: Response) => {
+  const userId = routeParam(req.params.id);
+  const result = await UserService.getFollowers(userId);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Followers fetched successfully!",
+    data: result,
+  });
+});
+
+const getFollowing = catchAsync(async (req: Request, res: Response) => {
+  const userId = routeParam(req.params.id);
+  const result = await UserService.getFollowing(userId);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Following fetched successfully!",
+    data: result,
+  });
+});
 
 const getWritingStreak = catchAsync(async (req: Request, res: Response) => {
   const token = await getToken(req);
@@ -174,22 +219,6 @@ const getAchievements = catchAsync(async (req: Request, res: Response) => {
   });
 });
 
-const updateWritingStreak = catchAsync(async (req: Request, res: Response) => {
-  const token = await getToken(req);
-  const user = await User.findOne({ email: token.email });
-  if (!user) {
-    throw new ApiError(httpStatus.BAD_REQUEST, "User not found!");
-  }
-  await WritingStreakService.updateStreakAndUnlocks(String(user._id));
-  const result = await WritingStreakService.getStreak(String(user._id));
-  sendResponse(res, {
-    statusCode: httpStatus.OK,
-    success: true,
-    message: "Writing streak updated successfully!",
-    data: result,
-  });
-});
-
 export const UserController = {
   getAllUsers,
   getUser,
@@ -201,7 +230,8 @@ export const UserController = {
   getAllWriterApplicationUsers,
   toggleFollow,
   getFollowStatus,
+  getFollowers,
+  getFollowing,
   getWritingStreak,
   getAchievements,
-  updateWritingStreak,
 };

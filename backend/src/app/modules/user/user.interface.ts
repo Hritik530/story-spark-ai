@@ -4,13 +4,33 @@ export interface IWritingGoals {
   dailyWordCount: number;
   weeklyWordCount: number;
 }
+export interface IPushSubscription {
+  endpoint: string;
+  expirationTime?: Date | null;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
+  createdAt?: Date;
+}
+
+export interface INotificationPreferences {
+  likes: boolean;
+  comments: boolean;
+  followers: boolean;
+  newStories: boolean;
+}
 export interface IUser {
   name: string;
   email: string;
   password?: string;
+  passwordChangedAt?: Date;
   role: string;
   status: string;
   subscriptionType: SubscriptionType;
+  subscriptionExpiry?: Date;
+  lastPaymentId?: string;
+  lastOrderId?: string;
   postsCount: number;
   followers: Types.ObjectId[];
   following: Types.ObjectId[];
@@ -22,9 +42,10 @@ export interface IUser {
       twitter: string;
       linkedin: string;
       instagram: string;
-    github: string;
-    discord: string;
-      github: string;  
+      github?: string;
+      discord?: string;
+
+      github: string;
       discord: string;
     };
   };
@@ -33,6 +54,9 @@ export interface IUser {
   posts: Types.ObjectId[];
   isApplyForWriter: boolean;
   tokenVersion?: number;
+  pendingEmail?: string;
+  pendingEmailToken?: string;
+  pendingEmailTokenExpires?: Date;
   gamification: {
     xp: number;
     level: number;
@@ -52,6 +76,8 @@ export interface IUser {
   };
   readingHistory?: Types.ObjectId[];
   writingGoals: IWritingGoals;
+  pushSubscriptions?: IPushSubscription[];
+notificationPreferences?: INotificationPreferences;
 }
 
 export type UserModel = Model<IUser, object>;

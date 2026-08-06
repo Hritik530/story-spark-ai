@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import CommunitySpotlightComponent from "./community_spotlight/community_spotlight.component";
 import FeatureComponent from "./feature/feature.component";
 import LatestPostsComponent from "./latest_posts/latest_posts.component";
@@ -11,36 +10,11 @@ import WriterFeedbackComponent from "./writer_feedback/writer_feedback.component
 import StartWritingComponent from "./start_writing/start_writing.component";
 import PersonalizedRecommendationsComponent from "./personalized_recommendations/personalized_recommendations.component";
 import { isLoggedIn } from "../../services/auth.service";
-import BackToTop from "../ScrollToTopButton";
 import StoryInspirationHomeCard from "./story_inspiration_card/StoryInspirationHomeCard";
-
-const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: {
-      staggerChildren: 0.1,
-    },
-  },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.4,
-    },
-  },
-};
+import PictureCarouselComponent from "./picture_carousel/picture_carousel.component";
 
 const HomeComponent = () => {
   const isLogin = isLoggedIn();
-
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "instant" });
-  }, []);
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 transition-colors duration-300 dark:bg-slate-950 dark:text-slate-100 w-full box-border overflow-x-hidden">
@@ -57,6 +31,7 @@ const HomeComponent = () => {
 
         <aside className="col-span-12 lg:col-span-4 min-w-0 w-full box-border">
           <div className="space-y-6 lg:sticky lg:top-24 w-full box-border">
+            <PictureCarouselComponent />
             {isLogin && <FeatureProfileComponent />}
             {isLogin && <PersonalizedRecommendationsComponent />}
             <StoryInspirationHomeCard />
@@ -65,7 +40,6 @@ const HomeComponent = () => {
           </div>
         </aside>
       </div>
-      <BackToTop />
     </div>
   );
 };

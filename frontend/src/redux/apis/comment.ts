@@ -41,6 +41,23 @@ const commentApi = baseApi.injectEndpoints({
       }),
       invalidatesTags: [tagTypes.post, tagTypes.comment],
     }),
+
+    toggleCommentHelpful: build.mutation({
+      query: (commentId: string) => ({
+        url: `/${COMMENT_URL}/toggle-helpful/commentId=${commentId}`,
+        method: "PATCH",
+      }),
+      invalidatesTags: [tagTypes.post, tagTypes.comment],
+    }),
+
+    reportComment: build.mutation({
+      query: (data: any) => ({
+        url: `/${COMMENT_URL}/report`,
+        method: "POST",
+        data: data,
+      }),
+      invalidatesTags: [tagTypes.comment],
+    }),
   }),
 });
 
@@ -49,4 +66,6 @@ export const {
   useGetCommentsListQuery,
   useToggleCommentLikeMutation,
   useDeleteCommentMutation,
+  useToggleCommentHelpfulMutation,
+  useReportCommentMutation,
 } = commentApi;

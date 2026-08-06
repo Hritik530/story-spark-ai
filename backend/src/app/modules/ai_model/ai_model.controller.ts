@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { setGuestUserIdCookie } from "../../../utils/cookie.util";
+import { randomUUID } from "node:crypto";
 import httpStatus from "http-status";
 import ApiError from "../../../errors/api_error";
 import catchAsync from "../../../shared/catch_async";
@@ -12,6 +13,8 @@ import {
   runWithQuotaCleanup,
 } from "./quota.lifecycle";
 import { generateWithGeminiStoriesStream } from "./ai_model.utils";
+import { UsageRecord } from "./usageRecord.model";
+import { PLAN_QUOTAS } from "../../../config/quota.config";
 
 const aiModelGenerate = catchAsync(async (req: Request, res: Response) => {
   const prompt = req.body;
@@ -43,16 +46,16 @@ const aiFreeModelGenerate = catchAsync(async (req: Request, res: Response) => {
   let userId = req.cookies.userId as string | undefined;
 
   if (!userId) {
-    userId = Math.random().toString(36).substring(7);
+    userId = randomUUID();
     setGuestUserIdCookie(res, userId);
   }
 
   const controller = new AbortController();
   req.on("close", () => controller.abort());
 
+  await reserveGuestQuota(userId);
   const guard = createGuestQuotaGuard(userId);
   await runWithQuotaCleanup(guard, async () => {
-    await reserveGuestQuota(userId);
     const result = await AiModelService.aiFreeModelGenerate(prompt, controller.signal);
     sendResponse(res, {
       statusCode: httpStatus.OK,
@@ -94,16 +97,16 @@ const aiFreeModelAlternateEndings = catchAsync(
     let userId = req.cookies.userId as string | undefined;
 
     if (!userId) {
-      userId = Math.random().toString(36).substring(7);
+      userId = randomUUID();
       setGuestUserIdCookie(res, userId);
     }
 
     const controller = new AbortController();
     req.on("close", () => controller.abort());
 
+    await reserveGuestQuota(userId);
     const guard = createGuestQuotaGuard(userId);
     await runWithQuotaCleanup(guard, async () => {
-      await reserveGuestQuota(userId);
       const result = await AiModelService.aiFreeModelAlternateEndings(payload, controller.signal);
       sendResponse(res, {
         statusCode: httpStatus.OK,
@@ -115,7 +118,7 @@ const aiFreeModelAlternateEndings = catchAsync(
   }
 );
 
-const aiModelGenerateStream = async (req: Request, res: Response) => {
+const aiModelGenerateStream = catchAsync(async (req: Request, res: Response) => {
   const { prompt, wordLength, numStories } = req.body;
   const guard = res.locals.quotaRefundGuard;
 
@@ -164,7 +167,7 @@ await runWithQuotaCleanup(guard, async () => {
     throw error;
   }
 });
-};
+});
 const aiModelRemix = catchAsync(async (req: Request, res: Response) => {
   const payload = req.body as IRemixPayload;
   const guard = res.locals.quotaRefundGuard;
@@ -195,16 +198,16 @@ const aiFreeModelRemix = catchAsync(async (req: Request, res: Response) => {
   let userId = req.cookies.userId as string | undefined;
 
   if (!userId) {
-    userId = Math.random().toString(36).substring(7);
+    userId = randomUUID();
     setGuestUserIdCookie(res, userId);
   }
 
   const controller = new AbortController();
   req.on("close", () => controller.abort());
 
+  await reserveGuestQuota(userId);
   const guard = createGuestQuotaGuard(userId);
   await runWithQuotaCleanup(guard, async () => {
-    await reserveGuestQuota(userId);
     const result = await AiModelService.aiFreeModelRemix(payload, controller.signal);
     sendResponse(res, {
       statusCode: httpStatus.OK,
@@ -245,16 +248,16 @@ const aiFreeModelTranslate = catchAsync(async (req: Request, res: Response) => {
   let userId = req.cookies.userId as string | undefined;
 
   if (!userId) {
-    userId = Math.random().toString(36).substring(7);
+    userId = randomUUID();
     setGuestUserIdCookie(res, userId);
   }
 
   const controller = new AbortController();
   req.on("close", () => controller.abort());
 
+  await reserveGuestQuota(userId);
   const guard = createGuestQuotaGuard(userId);
   await runWithQuotaCleanup(guard, async () => {
-    await reserveGuestQuota(userId);
     const result = await AiModelService.aiFreeModelTranslate(payload, controller.signal);
     sendResponse(res, {
       statusCode: httpStatus.OK,
@@ -295,16 +298,16 @@ const aiFreeModelChat = catchAsync(async (req: Request, res: Response) => {
   let userId = req.cookies.userId as string | undefined;
 
   if (!userId) {
-    userId = Math.random().toString(36).substring(7);
+    userId = randomUUID();
     setGuestUserIdCookie(res, userId);
   }
 
   const controller = new AbortController();
   req.on("close", () => controller.abort());
 
+  await reserveGuestQuota(userId);
   const guard = createGuestQuotaGuard(userId);
   await runWithQuotaCleanup(guard, async () => {
-    await reserveGuestQuota(userId);
     const result = await AiModelService.aiFreeModelChat(payload, controller.signal);
     sendResponse(res, {
       statusCode: httpStatus.OK,
@@ -345,16 +348,16 @@ const aiFreeStoryContinuation = catchAsync(async (req: Request, res: Response) =
   let userId = req.cookies.userId as string | undefined;
 
   if (!userId) {
-    userId = Math.random().toString(36).substring(7);
+    userId = randomUUID();
     setGuestUserIdCookie(res, userId);
   }
 
   const controller = new AbortController();
   req.on("close", () => controller.abort());
 
+  await reserveGuestQuota(userId);
   const guard = createGuestQuotaGuard(userId);
   await runWithQuotaCleanup(guard, async () => {
-    await reserveGuestQuota(userId);
     const result = await AiModelService.aiFreeStoryContinuation(payload, controller.signal);
     sendResponse(res, {
       statusCode: httpStatus.OK,
@@ -365,9 +368,69 @@ const aiFreeStoryContinuation = catchAsync(async (req: Request, res: Response) =
   });
 });
 
+const generateCharacterProfile = catchAsync(
+  async (req: Request, res: Response) => {
+    const { story } = req.body;
+
+    const result = await AiModelService.generateCharacterProfile(story);
+
+    sendResponse(res, {
+      statusCode: httpStatus.OK,
+      success: true,
+      message: "Character profiles generated successfully!",
+      data: result,
+    });
+  }
+);
+
+const getUsageMe = catchAsync(async (req: Request, res: Response) => {
+  const user = (req as any).user;
+  if (!user) {
+    throw new ApiError(httpStatus.UNAUTHORIZED, "User not authenticated");
+  }
+
+  const plan = user.subscriptionType || "free";
+  const limitsForPlan = PLAN_QUOTAS[plan as keyof typeof PLAN_QUOTAS] || PLAN_QUOTAS.free;
+
+  const now = new Date();
+  const billingPeriodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  // Fetch the usage records for this user for the current month
+  const records = await UsageRecord.find({
+    userId: user._id,
+    billingPeriodStart,
+  });
+
+  const generateRecord = records.find((r) => r.action === "story_generate");
+  const continueRecord = records.find((r) => r.action === "story_continue");
+
+  const resetsAt = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+
+  sendResponse(res, {
+    statusCode: httpStatus.OK,
+    success: true,
+    message: "Usage retrieved successfully",
+    data: {
+      plan,
+      usage: {
+        story_generate: {
+          used: generateRecord ? generateRecord.count : 0,
+          limit: limitsForPlan.story_generate,
+        },
+        story_continue: {
+          used: continueRecord ? continueRecord.count : 0,
+          limit: limitsForPlan.story_continue,
+        },
+      },
+      resetsAt,
+    },
+  });
+});
+
 export const AiModelController = {
   aiModelGenerate,
   aiFreeModelGenerate,
+  generateCharacterProfile,
   aiModelAlternateEndings,
   aiFreeModelAlternateEndings,
   aiModelGenerateStream,
@@ -379,4 +442,5 @@ export const AiModelController = {
   aiFreeStoryContinuation,
   aiModelChat,
   aiFreeModelChat,
+  getUsageMe,
 };
