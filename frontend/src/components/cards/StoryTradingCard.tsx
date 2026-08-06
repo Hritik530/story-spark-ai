@@ -150,7 +150,8 @@ const StoryTradingCard: React.FC<StoryTradingCardProps> = ({
       setIsCopied(true);
       toast.success("Story copied to clipboard!");
       setTimeout(() => setIsCopied(false), 2000);
-    } catch {
+    } catch (error) {
+      console.error("Failed to copy story text", error);
       toast.error("Could not copy story text.");
     }
   };
@@ -247,7 +248,7 @@ const StoryTradingCard: React.FC<StoryTradingCardProps> = ({
               <p className="text-[10px] font-black uppercase tracking-[0.28em] text-white/50">
                 StorySpark Card
               </p>
-              <h3 className="line-clamp-1 text-lg font-black text-white">
+              <h3 className="line-clamp-2 break-words text-lg font-black text-white overflow-hidden text-ellipsis">
                 {story.title}
               </h3>
             </div>

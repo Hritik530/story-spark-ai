@@ -4,6 +4,7 @@ import { useDebounced } from "../../../hooks/global";
 import { Post } from "../../../models/post";
 import { useGetMyPublishedStoriesQuery } from "../../../redux/apis/post.api";
 import PaginationComponent from "../../pagination/pagination.component";
+import ReadingTime from "../../ReadingTime";
 
 const PAGE_SIZE = 6;
 
@@ -188,6 +189,7 @@ const PublishedStoriesComponent: React.FC = () => {
                     <span className="rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
                       Published
                     </span>
+                    <ReadingTime content={story.content} className="inline-flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-slate-400 font-medium ml-1" />
                   </div>
 
                   <button
@@ -195,7 +197,7 @@ const PublishedStoriesComponent: React.FC = () => {
                     onClick={() => navigate(`/post/${story._id}`)}
                     className="text-left"
                   >
-                    <h3 className="line-clamp-2 text-lg font-black text-slate-900 transition hover:text-blue-600 dark:text-white dark:hover:text-blue-300">
+                    <h3 className="line-clamp-2 break-words text-lg font-black text-slate-900 transition hover:text-blue-600 dark:text-white dark:hover:text-blue-300 overflow-hidden text-ellipsis">
                       {story.title}
                     </h3>
                   </button>

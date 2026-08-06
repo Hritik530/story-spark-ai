@@ -1,5 +1,10 @@
-/* eslint-disable */
-import React, { useState } from 'react';
+fix/merge-conflicts
+ HEAD
+
+ main
+import React, { useState, useEffect } from 'react';
+import { useBlocker } from 'react-router-dom';
+
 import { getBaseUrl } from '../../helpers/config';
 import StoryGeneratingAnimation from '../loading/story-generating-animation.component';
 
@@ -8,6 +13,37 @@ const StoryInspirationPage: React.FC = () => {
   const [ideas, setIdeas] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const isDirty = intro.trim().length > 0;
+
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty]);
+
+  const blocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      isDirty && currentLocation.pathname !== nextLocation.pathname
+  );
+
+  useEffect(() => {
+    if (blocker.state === "blocked") {
+      const proceed = window.confirm(
+        "You have unsaved content in the intro field. Are you sure you want to leave?"
+      );
+      if (proceed) {
+        blocker.proceed();
+      } else {
+        blocker.reset();
+      }
+    }
+  }, [blocker]);
 
   const fetchIdeas = async () => {
     setLoading(true);
@@ -32,14 +68,20 @@ const StoryInspirationPage: React.FC = () => {
   return (
     <div className="max-w-xl mx-auto p-6 bg-white rounded shadow mt-10">
       <h2 className="text-2xl font-bold mb-4">Get Story Inspiration</h2>
-      <textarea
-        className="w-full border rounded p-2 mb-4"
-        rows={4}
-        placeholder="Enter your story intro..."
-        value={intro}
-        onChange={e => setIntro(e.target.value)}
-        disabled={loading}
-      />
+      <div className="relative">
+        <textarea
+          className="w-full border rounded p-2 mb-1"
+          rows={4}
+          placeholder="Enter your story intro..."
+          value={intro}
+          onChange={e => setIntro(e.target.value)}
+          disabled={loading}
+          maxLength={500}
+        />
+        <span className="text-xs text-gray-400 block text-right">
+          {intro.length}/500
+        </span>
+      </div>
 
     <div className="flex gap-2">
   <button

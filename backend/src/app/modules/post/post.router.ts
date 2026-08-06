@@ -1,7 +1,9 @@
 import express from "express";
 import { PostController } from "./post.controller";
+import { PostMetaController } from "./post.meta.controller";
 import auth from "../../middleware/auth.middleware";
 import checkRequestLimit from "../../middleware/check.request.limit";
+import csrfMiddleware from "../../middleware/csrf.middleware";
 import validateRequest from "../../middleware/validate.request";
 import { PostValidator } from "./post.validation";
 import { ENUM_USER_ROLE } from "../../../enums/user";
@@ -30,11 +32,41 @@ const AI_VARIATION_ROLES = [
 ] as const;
 
 // AI variation routes
-router.post("/remix", auth(...AI_VARIATION_ROLES), checkRequestLimit(), PostController.remixStory);
-router.post("/translate", auth(...AI_VARIATION_ROLES), checkRequestLimit(), PostController.translateStory);
+router.post(
+  "/remix",
+  auth(...AI_VARIATION_ROLES),
+  validateRequest(PostValidator.remixStory),
+  checkRequestLimit(),
+  PostController.remixStory
+);
+router.post(
+  "/translate",
+  auth(...AI_VARIATION_ROLES),
+  validateRequest(PostValidator.translateStory),
+  checkRequestLimit(),
+  PostController.translateStory
+);
 
 // Named GET routes must come before /:id to avoid the wildcard swallowing them
 router.get("/tag/:tag", PostController.getPostsByTag);
+
+// Paginated post list — used by the main /post feed page
+router.get("/lists", PostController.getPosts);
+
+// Published stories for the authenticated user — used by dashboard
+router.get(
+  "/my-published-stories",
+  auth(
+    ENUM_USER_ROLE.USER,
+    ENUM_USER_ROLE.WRITER,
+    ENUM_USER_ROLE.ADMIN,
+    ENUM_USER_ROLE.SUPER_ADMIN
+  ),
+  PostController.getPublishedPostsByAuthor
+);
+
+// Genre list — used by post filter dropdowns
+router.get("/genres", PostController.getGenres);
 
 // /latest-lists is a client-facing alias for /latest-posts (both serve the same handler)
 router.get("/latest-posts", PostController.getLatestPosts);
@@ -58,6 +90,7 @@ router.patch(
     ENUM_USER_ROLE.ADMIN,
     ENUM_USER_ROLE.SUPER_ADMIN
   ),
+  csrfMiddleware,
   PostController.toggleBookmark
 );
 
@@ -83,6 +116,9 @@ router.delete(
   ),
   PostController.deletePost
 );
+
+// OG meta route for social media bots — must be before /:id
+router.get("/meta/:id", PostMetaController.serveOgShell);
 
 // /:id must be last among GET routes — it matches any segment
 router.get("/:id", PostController.getSinglePost);

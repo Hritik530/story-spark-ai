@@ -5,18 +5,80 @@ import { Secret } from "jsonwebtoken";
 import ApiError from "../../errors/api_error";
 import { JwtHelpers } from "../../utils/jwt.helper";
 import { User } from "../modules/user/user.model";
-import { TokenBlacklist } from "../modules/auth/tokenBlacklist.model";
 import { USER_STATUS } from "../../enums/user_status";
+import { TokenBlacklist } from "../modules/auth/tokenBlacklist.model";
+
+type JwtVerifiedUser = {
+  _id: string;
+  tokenVersion?: number;
+  role?: string;
+  iat?: number;
+};
+const isJwtVerifiedUser = (
+  payload: unknown
+): payload is JwtVerifiedUser => {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "_id" in payload &&
+    typeof (payload as { _id?: unknown })._id === "string"
+  );
+};
+
+const getHeaderValue = (header: string | string[] | undefined): string => {
+  if (Array.isArray(header)) return header[0] ?? "";
+  return header ?? "";
+};
+
+const extractBearerToken = (authHeader: string): string => {
+  if (!authHeader) return "";
+  if (!authHeader.startsWith("Bearer ")) return "";
+  return authHeader.slice("Bearer ".length).trim();
+};
+
+const isSecureRequest = (req: Request): boolean => {
+  const forwardedProto = getHeaderValue(req.headers["x-forwarded-proto"]);
+  const protocol = (req.protocol || "").toLowerCase();
+  return req.secure || protocol === "https" || forwardedProto === "https";
+};
+
+const extractTokenFromRequest = (req: Request): string => {
+  const authHeader = getHeaderValue(req.headers.authorization);
+  const bearerToken = extractBearerToken(authHeader);
+
+  if (bearerToken) {
+    return bearerToken;
+  }
+
+  const cookieToken = req.cookies?.accessToken || req.cookies?.token;
+
+  if (!cookieToken) {
+    return "";
+  }
+
+  const allowCookieAuth = config.auth?.allow_cookie_auth === true;
+  if (!allowCookieAuth) {
+    throw new ApiError(
+      httpStatus.UNAUTHORIZED,
+      "Cookie-based authentication is disabled. Use the Authorization header or enable secure cookie auth explicitly."
+    );
+  }
+
+  if (!isSecureRequest(req)) {
+    throw new ApiError(
+      httpStatus.UNAUTHORIZED,
+      "Cookie-based authentication requires a secure and trusted request context."
+    );
+  }
+
+  return cookieToken;
+};
 
 const auth =
   (...requiredRole: string[]) =>
   async (req: Request, res: Response, next: NextFunction) => {
     try {
-      const authHeader = (req.headers.authorization || "") as string;
-
-      const token = authHeader.startsWith("Bearer ")
-        ? authHeader.slice(7).trim()
-        : authHeader.trim();
+      const token = extractTokenFromRequest(req);
 
       if (!token) {
         throw new ApiError(
@@ -25,21 +87,31 @@ const auth =
         );
       }
 
-      // Query the TokenBlacklist collection using the incoming token
-      const isBlacklisted = await TokenBlacklist.findOne({ token });
-      if (isBlacklisted) {
-        return res.status(401).json({
-          message: "Token has been revoked. Please log in again.",
-        });
-      }
-
-      // verify token
-      const verifiedUser = JwtHelpers.verifyToken(
+      // Verify JWT token
+      const decodedUser = JwtHelpers.verifyToken(
         token,
         config.jwt.secret as Secret
       );
 
-      const user = await User.findById((verifiedUser as any)._id);
+      if (!isJwtVerifiedUser(decodedUser)) {
+        throw new ApiError(
+          httpStatus.UNAUTHORIZED,
+          "Invalid token"
+        );
+      }
+
+
+      // Ensure this exact token string is not blacklisted
+      const blacklisted = await TokenBlacklist.findOne({ token }).lean();
+      if (blacklisted) {
+        throw new ApiError(
+          httpStatus.UNAUTHORIZED,
+          "Token has been revoked. Please log in again."
+        );
+      }
+      const verifiedUser = decodedUser;
+
+      const user = await User.findById(verifiedUser._id);
 
       if (!user) {
         throw new ApiError(
@@ -47,14 +119,28 @@ const auth =
           "User not found"
         );
       }
+      if (user.passwordChangedAt && verifiedUser.iat) {
+        const changedAtSeconds = Math.floor(user.passwordChangedAt.getTime() / 1000);
 
-      if (user.tokenVersion !== (verifiedUser as any).tokenVersion) {
+        if (verifiedUser.iat < changedAtSeconds) {
+          throw new ApiError(
+            httpStatus.UNAUTHORIZED,
+            "Session expired. Please log in again."
+          );
+        }
+      }
+      // Token version validation replaces blacklist check
+      if (
+        typeof verifiedUser.tokenVersion === "number" &&
+        user.tokenVersion !== verifiedUser.tokenVersion
+      ) {
         throw new ApiError(
           httpStatus.UNAUTHORIZED,
           "Token is invalid or expired"
         );
       }
 
+      // Check user status
       if (user.status !== USER_STATUS.ACTIVE) {
         throw new ApiError(
           httpStatus.FORBIDDEN,
@@ -62,18 +148,20 @@ const auth =
         );
       }
 
-      if (
-        requiredRole.length &&
-        !requiredRole.includes((verifiedUser as any).role)
-      ) {
-        throw new ApiError(
-          httpStatus.FORBIDDEN,
-          "Forbidden"
-        );
+      // Role authorization
+      if (requiredRole.length) {
+        if (
+          !verifiedUser.role ||
+          !requiredRole.includes(verifiedUser.role)
+        ) {
+          throw new ApiError(
+            httpStatus.FORBIDDEN,
+            "Forbidden"
+          );
+        }
       }
 
-      (req as any).user = verifiedUser;
-
+      req.user = user as Express.Request["user"];
       next();
     } catch (err) {
       next(err);
