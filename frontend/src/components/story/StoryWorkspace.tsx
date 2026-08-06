@@ -22,6 +22,19 @@ const StoryWorkspace = () => {
     (state: RootState) => state.story.currentStory
   );
   const [workspaceMode, setWorkspaceMode] = useState<"editor" | "network">("editor");
+  const handleCopyStoryId = async () => {
+  if (!currentStory) {
+    toast.error("No Story ID available.");
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(currentStory.id);
+    toast.success("Story ID copied successfully!");
+  } catch (error) {
+    toast.error("Failed to copy Story ID.");
+  }
+};
 
   const handleExportMarkdown = () => {
     if (!currentStory) {
@@ -134,6 +147,12 @@ const StoryWorkspace = () => {
         <div className="flex justify-between items-center p-4 border-b border-zinc-800 bg-zinc-900">
           <h2 className="text-white text-lg font-bold">{currentStory.title}</h2>
           <div className="flex items-center gap-3">
+            <button
+              onClick={handleCopyStoryId}
+              className="bg-zinc-700 hover:bg-zinc-600 text-white px-4 py-2 rounded shadow transition flex items-center gap-2 font-semibold cursor-pointer text-sm"
+            >
+              📋 Copy Story ID
+            </button>
             <div className="flex bg-zinc-950 rounded-lg p-0.5 border border-zinc-800 mr-2">
               <button
                 onClick={() => setWorkspaceMode("editor")}
