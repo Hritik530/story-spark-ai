@@ -6,6 +6,7 @@ import ApiError from "../../errors/api_error";
 import { JwtHelpers } from "../../utils/jwt.helper";
 import { User } from "../modules/user/user.model";
 import { USER_STATUS } from "../../enums/user_status";
+import { TokenBlacklist } from "../modules/auth/tokenBlacklist.model";
 
 type JwtVerifiedUser = {
   _id: string;
@@ -24,26 +25,20 @@ const isJwtVerifiedUser = (
   );
 };
 
-
-
 const getHeaderValue = (header: string | string[] | undefined): string => {
   if (Array.isArray(header)) return header[0] ?? "";
   return header ?? "";
 };
 
-
 const extractBearerToken = (authHeader: string): string => {
   if (!authHeader) return "";
-
   if (!authHeader.startsWith("Bearer ")) return "";
-
   return authHeader.slice("Bearer ".length).trim();
 };
 
 const isSecureRequest = (req: Request): boolean => {
   const forwardedProto = getHeaderValue(req.headers["x-forwarded-proto"]);
   const protocol = (req.protocol || "").toLowerCase();
-
   return req.secure || protocol === "https" || forwardedProto === "https";
 };
 
@@ -81,69 +76,93 @@ const extractTokenFromRequest = (req: Request): string => {
 
 const auth =
   (...requiredRole: string[]) =>
-    async (req: Request, res: Response, next: NextFunction) => {
-      try {
-        const token = extractTokenFromRequest(req);
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      const token = extractTokenFromRequest(req);
 
-        if (!token) {
-          throw new ApiError(
-            httpStatus.UNAUTHORIZED,
-            "You are not authorized to access"
-          );
-        }
-
-        const decodedUser = JwtHelpers.verifyToken(
-          token,
-          config.jwt.secret as Secret
+      if (!token) {
+        throw new ApiError(
+          httpStatus.UNAUTHORIZED,
+          "You are not authorized to access"
         );
+      }
 
-        if (!isJwtVerifiedUser(decodedUser)) {
-          throw new ApiError(httpStatus.UNAUTHORIZED, "Invalid token");
-        }
+      // Verify JWT token
+      const decodedUser = JwtHelpers.verifyToken(
+        token,
+        config.jwt.secret as Secret
+      );
 
-        const verifiedUser = decodedUser;
-        const user = await User.findById(verifiedUser._id);
+      if (!isJwtVerifiedUser(decodedUser)) {
+        throw new ApiError(
+          httpStatus.UNAUTHORIZED,
+          "Invalid token"
+        );
+      }
 
-        if (!user) {
-          throw new ApiError(httpStatus.UNAUTHORIZED, "User not found");
-        }
 
-        if (user.passwordChangedAt && verifiedUser.iat) {
-          const changedAtSeconds = Math.floor(user.passwordChangedAt.getTime() / 1000);
+      // Ensure this exact token string is not blacklisted
+      const blacklisted = await TokenBlacklist.findOne({ token }).lean();
+      if (blacklisted) {
+        throw new ApiError(
+          httpStatus.UNAUTHORIZED,
+          "Token has been revoked. Please log in again."
+        );
+      }
+      const verifiedUser = decodedUser;
 
-          if (verifiedUser.iat < changedAtSeconds) {
-            throw new ApiError(
-              httpStatus.UNAUTHORIZED,
-              "Session expired. Please log in again."
-            );
-          }
-        }
+      const user = await User.findById(verifiedUser._id);
 
-        if (
-          typeof verifiedUser.tokenVersion === "number" &&
-          user.tokenVersion !== verifiedUser.tokenVersion
-        ) {
+      if (!user) {
+        throw new ApiError(
+          httpStatus.UNAUTHORIZED,
+          "User not found"
+        );
+      }
+      if (user.passwordChangedAt && verifiedUser.iat) {
+        const changedAtSeconds = Math.floor(user.passwordChangedAt.getTime() / 1000);
+
+        if (verifiedUser.iat < changedAtSeconds) {
           throw new ApiError(
             httpStatus.UNAUTHORIZED,
-            "Token is invalid or expired"
+            "Session expired. Please log in again."
           );
         }
-
-        if (user.status !== USER_STATUS.ACTIVE) {
-          throw new ApiError(httpStatus.FORBIDDEN, "Your account is not active");
-        }
-
-        if (requiredRole.length) {
-          if (!verifiedUser.role || !requiredRole.includes(verifiedUser.role)) {
-            throw new ApiError(httpStatus.FORBIDDEN, "Forbidden");
-          }
-        }
-
-        req.user = user as Express.Request["user"];
-        next();
-      } catch (err) {
-        next(err);
       }
-    };
+      // Token version validation replaces blacklist check
+      if (
+        typeof verifiedUser.tokenVersion === "number" &&
+        user.tokenVersion !== verifiedUser.tokenVersion
+      ) {
+        throw new ApiError(
+          httpStatus.UNAUTHORIZED,
+          "Token is invalid or expired"
+        );
+      }
+
+      // Check user status
+      if (user.status !== USER_STATUS.ACTIVE) {
+        throw new ApiError(
+          httpStatus.FORBIDDEN,
+          "Your account is not active"
+        );
+      }
+
+      // Role authorization — use DB role so JWT claim drift cannot escalate privileges
+      if (requiredRole.length) {
+        if (!user.role || !requiredRole.includes(user.role)) {
+          throw new ApiError(
+            httpStatus.FORBIDDEN,
+            "Forbidden"
+          );
+        }
+      }
+
+      req.user = user as Express.Request["user"];
+      next();
+    } catch (err) {
+      next(err);
+    }
+  };
 
 export default auth;

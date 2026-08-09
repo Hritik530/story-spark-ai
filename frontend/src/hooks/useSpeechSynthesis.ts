@@ -216,7 +216,8 @@ export const useSpeechSynthesis = (
     setIsSpeaking(false);
     setIsPaused(false);
     setCurrentWordIndex(0);
-  };
+  }, []);
+
 
   // Initialize speech synthesis support + voice loading.
   useEffect(() => {
@@ -400,6 +401,7 @@ export const useSpeechSynthesis = (
       synthRef.current.cancel();
       synthRef.current.speak(utterance);
       setCurrentWordIndex(0);
+
     },
 
     [
@@ -411,10 +413,7 @@ export const useSpeechSynthesis = (
       selectedVoiceId,
       selectedLanguage,
       stop,
-    ],
-
-    [isSupported, rateState, pitchState, volumeState, selectedVoiceId, selectedLanguage, stop, resolveBrowserVoice],
-
+    ]
   );
 
   const pause = useCallback(() => {

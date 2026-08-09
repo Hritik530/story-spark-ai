@@ -1,3 +1,5 @@
+// backend/src/config/razorpay.ts
+
 import Razorpay from 'razorpay';
 
 let razorpayInstance: InstanceType<typeof Razorpay> | null = null;

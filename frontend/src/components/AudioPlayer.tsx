@@ -82,6 +82,7 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
     const favorites = useVoiceFavorites();
     const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
 
+
     // ✅ FIX: Calculate actual word count from story text
     const actualTotalWords = useMemo(() => getWordCount(text), [text]);
     const speedSelectId = useId();
@@ -132,7 +133,8 @@ const AudioPlayer = forwardRef<AudioPlayerHandle, AudioPlayerProps>(
           speech.setSelectedVoiceId(displayedVoices[0].id);
         }
       }
-    }, [showFavoritesOnly, displayedVoices, speech.selectedVoiceId]);
+
+    }, [showFavoritesOnly, displayedVoices, speech]);
 
     useEffect(() => {
       const handleKeyDown = (event: KeyboardEvent) => {

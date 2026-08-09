@@ -26,7 +26,7 @@ const passwordSchema = z
 
 const login = z.object({
   body: z.object({
-    email: z.string({ required_error: "Email is required" }),
+    email: z.string({ required_error: "Email is required" }).email("Invalid email address"),
     password: z.string({ required_error: "Password is required" }),
   }),
 });
@@ -34,6 +34,14 @@ const login = z.object({
 const forgotPassword = z.object({
   body: z.object({
     email: z.string({ required_error: "Email is required" }).email("Invalid email address"),
+  }),
+});
+
+const resendVerificationEmail = z.object({
+  body: z.object({
+    email: z
+      .string({ required_error: "Email is required" })
+      .email("Invalid email address"),
   }),
 });
 
@@ -57,6 +65,7 @@ const updateUser = z.object({
           bio: z.string().max(1000, "Bio cannot exceed 1000 characters").optional(),
           social: z
             .object({
+
               facebook: z.string().max(200).optional(),
               twitter: z.string().max(200).optional(),
               linkedin: z.string().max(200).optional(),
@@ -111,5 +120,6 @@ export const UserValidator = {
   updateUser,
   changePassword,
   sendOtp,
+  resendVerificationEmail,
   verifyEmailChange,
 };

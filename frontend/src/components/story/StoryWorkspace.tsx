@@ -39,7 +39,8 @@ import StoryComparisonDashboard from "../comparison/StoryComparisonDashboard";
 import StoryTimelineVisualization from "../timeline/StoryTimelineVisualization";
 import StoryRelationshipGraph from "../relationship-graph/StoryRelationshipGraph";
 import StoryPlotTwistGenerator from "../plot-twist/StoryPlotTwistGenerator";
-import StoryReadingAnalytics from "../analytics/StoryReadingAnalytics";
+import StoryReadingAnalytics from "../analytics-jp/StoryReadingAnalytics";
+import VocabularyAnalyzer from "../vocabulary/VocabularyAnalyzer";
 
 import StoryRevisionHistory from "../revision-history/StoryRevisionHistory";
 import { createRevision } from "../../utils/storyRevisionHistory";
@@ -49,7 +50,6 @@ import StoryNamingAssistant from "../naming-assistant/StoryNamingAssistant";
 import StoryPublishingReadiness from "../publishing-readiness/StoryPublishingReadiness";
 import StoryTagGenerator from "../story-tags/StoryTagGenerator";
 import StoryReadingInfo from "../reading-info/StoryReadingInfo";
-import VocabularyAnalyzer from "../vocabulary/VocabularyAnalyzer";
 import StoryFocusMode from "../focus-mode/StoryFocusMode";
 import StoryContinuationSuggestions from "../story-continuation/StoryContinuationSuggestions";
 
@@ -64,8 +64,21 @@ const StoryWorkspace = () => {
   const currentStory = useSelector(
     (state: RootState) => state.story.currentStory
   );
-  const [workspaceMode, setWorkspaceMode] = useState<"editor" | "network">("editor");
 
+  const [workspaceMode, setWorkspaceMode] = useState<"editor" | "network">("editor");
+  const handleCopyStoryId = async () => {
+    if (!currentStory) {
+      toast.error("No Story ID available.");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(currentStory.id);
+      toast.success("Story ID copied successfully!");
+    } catch (error) {
+      toast.error("Failed to copy Story ID.");
+    }
+  };
   const [selectedTheme, setSelectedTheme] = useState<
   "Classic" | "Novel" | "Minimal" | "Dark"
 >("Classic");
@@ -100,10 +113,10 @@ const StoryWorkspace = () => {
     await navigator.clipboard.writeText(storyText);
     toast.success("Story copied to clipboard!");
   } catch (error) {
-    console.error(error);
-    toast.error("Failed to copy story.");
-  }
-};
+      console.error(error);
+      toast.error("Failed to copy story.");
+    }
+  };
 
   const handleExportMarkdown = () => {
     if (!currentStory) {
@@ -212,19 +225,27 @@ const StoryWorkspace = () => {
       <Toaster position="top-right" reverseOrder={false} />
       <ChapterSidebar
         chapters={currentStory.chapters}
+        maxChapterWords={2500}
       />
 
       <div className="flex flex-col flex-1">
         <div className="flex justify-between items-center p-4 border-b border-zinc-800 bg-zinc-900">
           <h2 className="text-white text-lg font-bold">{currentStory.title}</h2>
           <div className="flex items-center gap-3">
+            <button
+              onClick={handleCopyStoryId}
+              className="bg-zinc-700 hover:bg-zinc-600 text-white px-4 py-2 rounded shadow transition flex items-center gap-2 font-semibold cursor-pointer text-sm"
+            >
+              📋 Copy Story ID
+            </button>
+
             <div className="flex bg-zinc-950 rounded-lg p-0.5 border border-zinc-800 mr-2">
               <button
                 onClick={() => setWorkspaceMode("editor")}
                 className={`px-3 py-1.5 rounded-md text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                   workspaceMode === "editor"
                     ? "bg-indigo-600 text-white shadow"
-                    : "text-slate-400 hover:text-slate-300"
+                    : "text-slate-400 hover:text-slate-250"
                 }`}
               >
                 📖 Read Story
@@ -234,31 +255,33 @@ const StoryWorkspace = () => {
                 className={`px-3 py-1.5 rounded-md text-xs font-bold transition flex items-center gap-1.5 cursor-pointer ${
                   workspaceMode === "network"
                     ? "bg-indigo-600 text-white shadow"
-                    : "text-slate-400 hover:text-slate-300"
+                    : "text-slate-400 hover:text-slate-255"
                 }`}
               >
                 🕸️ Character Network
               </button>
             </div>
+            
             <select
-  value={selectedTheme}
-  onChange={(e) =>
-    setSelectedTheme(
-      e.target.value as "Classic" | "Novel" | "Minimal" | "Dark"
-    )
-  }
-  className="bg-zinc-800 text-white rounded px-3 py-2 border border-zinc-700 text-sm"
->
-  <option value="Classic">📖 Classic</option>
-  <option value="Novel">📚 Novel</option>
-  <option value="Minimal">✨ Minimal</option>
-  <option value="Dark">🌙 Dark</option>
-</select>
+              value={selectedTheme}
+              onChange={(e) =>
+                setSelectedTheme(
+                  e.target.value as "Classic" | "Novel" | "Minimal" | "Dark"
+                )
+              }
+              className="bg-zinc-800 text-white rounded px-3 py-2 border border-zinc-700 text-sm"
+            >
+              <option value="Classic">📖 Classic</option>
+              <option value="Novel">📚 Novel</option>
+              <option value="Minimal">✨ Minimal</option>
+              <option value="Dark">🌙 Dark</option>
+            </select>
+
             <button
               onClick={handleCopyStory}
               className="bg-zinc-700 hover:bg-zinc-600 text-white px-4 py-2 rounded shadow transition flex items-center gap-2 font-semibold cursor-pointer text-sm"
-              >
-                📋 Copy Story
+            >
+              📋 Copy Story
             </button>
             <button
               onClick={handleExportMarkdown}
@@ -281,6 +304,7 @@ const StoryWorkspace = () => {
           </div>
         </div>
 
+
         {workspaceMode === "editor" ? (
   <>
   <div className="p-4 border-b border-zinc-800">
@@ -296,12 +320,12 @@ const StoryWorkspace = () => {
 
 <StoryCoverGenerator
   title={currentStory.title}
-  genre={currentStory.genre ?? "General"}
-  theme={currentStory.theme ?? currentStory.title}
+  genre={(currentStory as any).genre ?? "General"}
+  theme={(currentStory as any).theme ?? currentStory.title}
   characters={
-    currentStory.characters?.map((c) => c.name) ??
+    (currentStory as any).characters?.map((c: any) => c.name) ??
     currentStory.chapters
-      ?.flatMap((ch) => ch.characters ?? [])
+      ?.flatMap((ch: any) => ch.characters ?? [])
       .slice(0, 3) ??
     []
   }
@@ -313,9 +337,7 @@ const StoryWorkspace = () => {
   }
 />
 
-<StoryBranchingEditor
-  storyTitle={currentStory.title}
-/>
+<StoryBranchingEditor />
 <PlotHoleDetector
   story={
     fullStoryContent
@@ -447,18 +469,7 @@ const StoryWorkspace = () => {
 
   storyB={previousStoryDraft ?? ""}
 /> */}
-  storyB={
-    fullStoryContent
-    currentStory.chapters?.length
-      ? currentStory.chapters[currentStory.chapters.length - 1].content
-      : ""
-  }
-  storyB={
-    currentStory.chapters?.length && currentStory.chapters.length > 1
-      ? currentStory.chapters[currentStory.chapters.length - 2].content
-      : "(previous chapter will appear here)"
-  }
-/>
+
 
 
 <StoryTimelineVisualization
@@ -574,7 +585,7 @@ const StoryWorkspace = () => {
   </div>
 </>
         ) : (
-          <CharacterNetwork storyId={currentStory.id} />
+          <CharacterNetwork storyId={currentStory.id} storyContent={currentStory.chapters?.map((chapter) => chapter.content).join("\n\n") || ""} />
         )}
       </div>
     </div>

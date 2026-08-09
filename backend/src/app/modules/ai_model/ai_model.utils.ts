@@ -4,7 +4,7 @@ import {
   HarmBlockThreshold,
 } from "@google/generative-ai";
 import { fetchImageURL } from "../../../utils/image_generation";
-import { generateStoryboardImage } from "../../../utils/storyboard_image_generation";
+import { generateStoryboardImage } from "../../../utils/storyboard_image";
 import { GenerationAbortedError } from "../../../utils/generation_timeout";
 import config from "../../../config";
 import { aiLimit } from "../../../utils/aiLimiter";
@@ -139,6 +139,8 @@ const throwIfAborted = (signal?: AbortSignal): void => {
     throw new GenerationAbortedError();
   }
 };
+
+
 
 const buildCharactersInstruction = (characters?: ICharacter[]): string => {
   if (!characters || characters.length === 0) return "";
@@ -320,7 +322,7 @@ export async function generateWithGeminiStories(
     return stories.map((story, index) => ({
       ...story,
       language,
-      imageURL: imageUrls[index],
+      imageURL: coverImages[index],
       coverImage: coverImages[index],
       uuid: uuidv4(),
     }));

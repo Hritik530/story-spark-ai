@@ -13,13 +13,9 @@ export const scrubPII = (text: string): string => {
 
   let scrubbed = text;
 
-  // Idempotency check removed due to security bypass vulnerability (Issue #4461)
-
-
-
   // 1. Emails
 
-  const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+  const emailRegex = /[a-zA-Z0-9._%+\-']+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
   scrubbed = scrubbed.replace(emailRegex, "[REDACTED_EMAIL]");
 
   // 2. Phone numbers
@@ -29,6 +25,10 @@ export const scrubPII = (text: string): string => {
   // UK/International Mobile formats
   const phoneIntRegex = /(?<![\w/])(?:\+44\s?|0)7\d{3}[-.\s]?\d{6}\b/g;
   scrubbed = scrubbed.replace(phoneIntRegex, "[REDACTED_PHONE]");
+
+  // Generic international formats (+49, +61, etc.)
+  const phoneGenericIntRegex = /(?<![\w/])\+\d{1,4}\s?(?:\(\d{1,4}\)|\d{1,4})[-.\s]?\d{1,4}[-.\s]?\d{1,4}[-.\s]?\d{1,9}\b/g;
+  scrubbed = scrubbed.replace(phoneGenericIntRegex, "[REDACTED_PHONE]");
 
   const phoneRegex =
     /(?<![\w/])(?:\+\d{1,3}[-.\s]?|1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}\b/g;
@@ -88,20 +88,25 @@ export const scrubPII = (text: string): string => {
     /\b\d{1,5}\s+[A-Za-z0-9][A-Za-z0-9\s.'-]{1,60}\s+(?:Street|St|Avenue|Ave|Boulevard|Blvd|Road|Rd|Drive|Dr|Lane|Ln|Court|Ct|Place|Pl|Parkway|Pkwy)(?:\s+(?:Apt|Apartment|Suite|Ste|Unit|Room)\s+[A-Za-z0-9#-]+)?(?:\s*,\s*[A-Za-z\s]+)?(?:\s*,\s*[A-Z]{2})?(?:\s+\d{5})?\b/gi;
   scrubbed = scrubbed.replace(addressRegex, "[REDACTED_ADDRESS]");
 
+
   // 7. NLP for Person Names using compromise
-  const doc = compromise(scrubbed);
-  const people = doc.people().out("array");
+  const containsAnyRedactionToken =
+    /\[REDACTED_(?:EMAIL|PHONE|NAME|SSN|CARD|ADDRESS)\]/i.test(scrubbed);
+  if (!containsAnyRedactionToken) {
+    const doc = compromise(scrubbed);
+    const people = doc.people().out("array");
 
-  // Sort by length descending to replace longer names first (prevent partial replacement issues)
-  people.sort((a: string, b: string) => b.length - a.length);
+    // Sort by length descending to replace longer names first (prevent partial replacement issues)
+    people.sort((a: string, b: string) => b.length - a.length);
 
-  for (const person of people) {
-    if (person.length > 2) {
-      // Replace name with punctuation-safe boundaries.
-      // This handles cases like "John," "John." "(John)".
-      const escaped = escapeRegex(person);
-      const nameRegex = new RegExp(`(^|[^\\w])(${escaped})(?=$|[^\\w])`, "gi");
-      scrubbed = scrubbed.replace(nameRegex, "$1[REDACTED_NAME]");
+    for (const person of people) {
+      if (person.length > 2) {
+        // Replace name with punctuation-safe boundaries.
+        // This handles cases like "John," "John." "(John)".
+        const escaped = escapeRegex(person);
+        const nameRegex = new RegExp(`(^|[^\\w])(${escaped})(?=$|[^\\w])`, "gi");
+        scrubbed = scrubbed.replace(nameRegex, "$1[REDACTED_NAME]");
+      }
     }
   }
 
