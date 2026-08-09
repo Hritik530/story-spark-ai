@@ -15,7 +15,7 @@ The `isValidUrl` function is designed to validate URL string values. It is commo
 The function is defined as follows:
 
 ```typescript
-export const isValidUrl = (url: string): boolean => { ... }
+export const isValidUrl = (url: string): boolean => { /* implementation */ }
 ```
 
 - **Parameter**: `url` (`string`) – The URL string that needs to be validated.
