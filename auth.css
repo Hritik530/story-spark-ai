@@ -49,6 +49,10 @@ body {
     box-sizing: border-box;
 }
 
+.hidden {
+    display: none !important;
+}
+
 /* ── Particles Canvas (Canvas-driven background) ── */
 
 #particle-canvas {
@@ -631,4 +635,38 @@ button:disabled {
 .ds-btn-submit,
 .ds-btn-google {
     width: 100%;
+}
+
+/* Main Story Spark AI branding */
+.main-brand {
+    font-size: 64px;
+    font-weight: 800;
+    letter-spacing: -2px;
+    text-align: center;
+    background: linear-gradient(90deg, #4f8cff, #7c6cff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 40px;
+}
+
+.left-pane {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    width: 100%;
+    padding-top: 40px;
+}
+
+.main-brand {
+    text-align: center;
+    font-size: 64px;
+    font-weight: 800;
+    letter-spacing: -2px;
+    margin-bottom: 45px;
+
+    background: linear-gradient(90deg, #4f8cff, #7c6cff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
 }
