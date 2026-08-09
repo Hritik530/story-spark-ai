@@ -144,10 +144,19 @@ async function main() {
       ? ["http://localhost:4001", "http://localhost:4002"]
       : [];
 
+
     const socketCorsOrigins =
       config.cors_origins && config.cors_origins.length > 0
         ? config.cors_origins
         : defaultCorsOrigins;
+
+    const socketCorsOrigins = config.cors_origins && config.cors_origins.length > 0
+      ? config.cors_origins
+      : defaultCorsOrigins;
+
+    // Recovers orders left in "paid_pending_entitlement" by a crash between
+    // the Order write and the User write in verifyPayment. See issue #4876.
+    startOrderReconciliationJob();
 
     // Recovers orders left in "paid_pending_entitlement" by a crash between
     // the Order write and the User write in verifyPayment. See issue #4876.
@@ -163,7 +172,7 @@ async function main() {
       },
     });
 
-    // Apply rate limiting to all Socket.IO connections
+
     io.use(socketRateLimiter);
 
     io.use((socket, next) => {
@@ -201,7 +210,9 @@ async function main() {
       }
     });
 
-    logger.info("🔌 Socket.IO server initialized with rate limiting");
+
+    logger.info("Socket.IO server initialized with rate limiting");
+
 
     httpServer.listen(config.port, () => {
       logger.info(`Story-Spark-AI app listening on port ${config.port}`);
