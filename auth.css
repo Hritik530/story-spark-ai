@@ -395,6 +395,24 @@ input:focus {
     position: relative;
 }
 
+/* Small padding so input icons and action buttons sit inside the card edges */
+.auth-form-card {
+    padding: 28px;
+}
+
+/* Ensure inputs inside the input-group leave room for the left icon and right action */
+.ds-input-group > input,
+.ds-input-group .ds-input {
+    padding-left: 44px; /* room for icon */
+    padding-right: 16px; /* default */
+    box-sizing: border-box;
+}
+
+.ds-input-group.has-action > input,
+.ds-input-group.has-action .ds-input {
+    padding-right: 44px; /* room for action button */
+}
+
 
 /* ── Mobile Layout Media Queries ── */
 @media (min-width: 768px) and (max-width: 1023px) {
