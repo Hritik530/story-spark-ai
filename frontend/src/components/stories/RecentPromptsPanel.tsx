@@ -132,6 +132,7 @@ const RecentPromptsPanel: React.FC<RecentPromptsPanelProps> = ({
                     <button
                       type="button"
                       onClick={() => {
+                        onPromptUse?.(item.id);  // track usage — same as clicking prompt text
                         onSelectPrompt(item.prompt);
                         onToggle();
                       }}
