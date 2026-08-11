@@ -7,9 +7,9 @@ interface PageTransitionProps {
   className?: string;
 }
 
-const pageVariants = {
+export const pageVariants = {
   initial: (reducedMotion: boolean) => ({
-    opacity: 0,
+    opacity: reducedMotion ? 1 : 0,
     y: reducedMotion ? 0 : 8,
   }),
   animate: {
@@ -17,7 +17,7 @@ const pageVariants = {
     y: 0,
   },
   exit: (reducedMotion: boolean) => ({
-    opacity: 0,
+    opacity: reducedMotion ? 1 : 0,
     y: reducedMotion ? 0 : -8,
   }),
 };
@@ -34,7 +34,7 @@ const PageTransition: React.FC<PageTransitionProps> = ({
       <motion.div
         key={pathname}
         custom={shouldReduceMotion}
-        initial="initial"
+        initial={shouldReduceMotion ? false : "initial"}
         animate="animate"
         exit="exit"
         variants={pageVariants}
