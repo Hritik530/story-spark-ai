@@ -4,7 +4,6 @@ import toast, { Toaster } from "react-hot-toast";
 import { USER_ROLE } from "./constants/role";
 
 // --- Core Layout & Non-Lazy Components ---
-import { ThemeToggle } from './components/ThemeToggle';
 import HeroSectionComponent from "./components/hero/hero_section.component";
 import HomeComponent from "./components/home/home.component";
 import RootLayout from "./components/layout/root_layout.component";
