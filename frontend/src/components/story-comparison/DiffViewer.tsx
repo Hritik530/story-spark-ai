@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useCallback, useState } from "react";
-import { diffChars, diffWords, Change } from "jsdiff";
+import { diffChars, diffWords, Change } from "diff";
 
 import DiffHighlight from "./DiffHighlight";
 
